@@ -6,6 +6,7 @@ import '../core/pdf_builder.dart';
 import '../models/selected_image.dart';
 import '../services/image_picker_service.dart';
 import '../services/pdf_saver.dart';
+import '../services/settings_store.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/image_card.dart';
 
@@ -21,6 +22,32 @@ class _ConverterScreenState extends State<ConverterScreen> {
   PageSizeMode _pageSize = PageSizeMode.a4;
   double _marginMm = 10;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSettings();
+  }
+
+  Future<void> _restoreSettings() async {
+    final PdfSettings? saved = await SettingsStore.instance.load();
+    if (saved == null || !mounted) return;
+    setState(() {
+      _pageSize = saved.pageSize;
+      _marginMm = saved.marginMm;
+    });
+  }
+
+  void _selectPageSize(PageSizeMode mode) {
+    setState(() => _pageSize = mode);
+    _rememberSettings();
+  }
+
+  void _rememberSettings() {
+    SettingsStore.instance.save(
+      PdfSettings(pageSize: _pageSize, marginMm: _marginMm),
+    );
+  }
 
   int get _totalBytes =>
       _images.fold(0, (int total, SelectedImage image) => total + image.byteSize);
@@ -172,7 +199,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                         ? null
                         : (bool selected) {
                             if (selected) {
-                              setState(() => _pageSize = mode);
+                              _selectPageSize(mode);
                             }
                           },
                   ),
@@ -200,6 +227,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
               onChanged: marginDisabled
                   ? null
                   : (double value) => setState(() => _marginMm = value),
+              onChangeEnd: marginDisabled
+                  ? null
+                  : (double value) => _rememberSettings(),
             ),
             if (_pageSize == PageSizeMode.fitImage)
               Text(
@@ -209,6 +239,22 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 ),
               ),
             const Divider(height: 24),
+            if (_images.isNotEmpty) ...<Widget>[
+              Text(
+                'Output file',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _suggestedFileName(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 12),
+            ],
             FilledButton.icon(
               onPressed: _images.isEmpty || _busy ? null : _createPdf,
               icon: _busy
