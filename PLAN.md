@@ -15,6 +15,7 @@ with a Material 3 interface.
 | Page size: A4, Letter, or match the photo | Merging existing PDFs |
 | Page orientation: auto, vertical, horizontal | Printing, sharing |
 | Clear the whole photo list in one tap, with undo | Batch renaming, watermarks |
+| PDF → photos: one JPEG per page at 150 / 200 / 300 DPI | Scanning, OCR, sharing |
 | Compress photos on the way in (original / balanced / small) | Editing, cropping |
 | Password-protect the PDF | Watermarks, signatures |
 | Photos from the gallery (default) or the file browser | Camera capture, cloud drives |
@@ -86,7 +87,9 @@ Core (pure Dart, no plugins)       lib/src/core
 ```
 lib/main.dart                              app entry, MaterialApp with themes
 lib/src/theme.dart                         Material 3 palette + component themes
-lib/src/screens/converter_screen.dart      the single screen and its state
+lib/src/screens/home_screen.dart           bottom bar: to PDF / to photos
+lib/src/screens/converter_screen.dart      photos to PDF and its state
+lib/src/screens/pdf_to_images_screen.dart  PDF to photos and its state
 lib/src/screens/settings_screen.dart       save folder + "ask each time" switch
 lib/src/widgets/empty_state.dart           first-run empty state
 lib/src/widgets/image_card.dart            thumbnail row with drag handle
@@ -97,6 +100,8 @@ lib/src/core/pdf_encryption.dart           RC4 128-bit password protection
 lib/src/models/selected_image.dart         photo model + size formatting
 lib/src/services/image_picker_service.dart file picking, validation, transcoding
 lib/src/services/pdf_saver.dart            platform-aware saving
+lib/src/services/pdf_page_renderer.dart    PDFium page rendering to JPEG
+lib/src/services/page_saver.dart           writes rendered pages
 lib/src/services/save_location.dart        save folder, unique names, labels
 lib/src/services/settings_store.dart       remembered page size, margin, folder
 test/photo_info_test.dart                  format/size parsing tests
@@ -117,6 +122,7 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Pick photos, validate them, show a thumbnail list
 - [x] Reorder, remove, clear all
 - [x] Page size (A4 / Letter / fit photo) + margin
+- [x] PDF → photos mode (PDFium through `pdfrx`), JPEG per page
 - [x] Clear all photos from the list header or the app bar, one tap of undo
 - [x] Page orientation (auto / vertical / horizontal)
 - [x] On-the-fly compression (original / balanced / small)
@@ -159,6 +165,9 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - **EXIF metadata** — a photo that needs rotation has its EXIF block dropped
   when the pixels are baked (which also removes GPS and device serial numbers).
   Photos that are already upright keep their original bytes.
+- **Encrypted PDFs in** — password-protected PDFs cannot be opened in the
+  PDF → photos mode yet (`pdfrx` takes a password provider; the dialog is not
+  wired to it), so they fail with a message.
 - **PDF password** — the standard security handler (RC4 128 bit, PDF 1.4) is
   used because every viewer accepts it; AES-256 would be stronger but is not
   what older Android viewers understand. The password is held in memory only
@@ -179,10 +188,10 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 42 passing |
+| Unit tests | `flutter test` | 45 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF` |
 
 Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.
