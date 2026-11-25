@@ -32,10 +32,11 @@ const double _imageDpi = 150;
 /// PDF viewers reject pages larger than 14400 points per side.
 const double _maxPageSide = 14400;
 
-/// Builds a single PDF with one page per image, in the given order.
+/// Builds a single PDF with one page per photo, in the given order.
 ///
-/// Each JPEG is embedded as-is (no re-encoding), so the output stays small and
-/// keeps the original quality.
+/// JPEG bytes are embedded as-is (no re-encoding), so the output stays small and
+/// keeps the original quality. Other formats are decoded by the PDF writer and
+/// stored as pixels.
 Future<Uint8List> buildPdf(
   List<SelectedImage> images,
   PdfOptions options,

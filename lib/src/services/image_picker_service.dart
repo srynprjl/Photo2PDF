@@ -2,7 +2,8 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 
-import '../core/jpeg_info.dart';
+import '../core/photo_info.dart';
+import '../core/platform_decoder.dart';
 import '../models/selected_image.dart';
 
 /// Result of one picker session.
@@ -11,7 +12,7 @@ class PickedImages {
 
   final List<SelectedImage> images;
 
-  /// File names that were not usable (not a JPEG, broken header or CMYK).
+  /// File names that could not be read as a photo.
   final List<String> rejected;
 }
 
@@ -25,9 +26,21 @@ class ImagePickerService {
   /// Opens the platform file picker. Returns `null` when the user cancels.
   Future<PickedImages?> pick() async {
     final List<PlatformFile> files = await FilePicker.pickFiles(
-      dialogTitle: 'Choose JPG images',
+      dialogTitle: 'Choose photos',
       type: FileType.custom,
-      allowedExtensions: const <String>['jpg', 'jpeg'],
+      allowedExtensions: const <String>[
+        'jpg',
+        'jpeg',
+        'png',
+        'webp',
+        'heic',
+        'heif',
+        'avif',
+        'bmp',
+        'gif',
+        'tif',
+        'tiff',
+      ],
     );
 
     if (files.isEmpty) {
@@ -38,12 +51,27 @@ class ImagePickerService {
     final List<String> rejected = <String>[];
 
     for (final PlatformFile file in files) {
-      final Uint8List? bytes = await _readBytes(file);
-      final JpegInfo? info = bytes == null ? null : readJpegInfo(bytes);
-      if (bytes == null || info == null || info.isCmyk) {
+      Uint8List? bytes = await _readBytes(file);
+      PhotoInfo? info = bytes == null ? null : readPhotoInfo(bytes);
+
+      // HEIC/AVIF and other container formats only the engine understands:
+      // transcode once here so the PDF writer gets pixels it can embed.
+      if (bytes != null && info == null) {
+        final Uint8List? converted = await decodeWithPlatformCodec(bytes);
+        if (converted != null) {
+          final PhotoInfo? convertedInfo = readPhotoInfo(converted);
+          if (convertedInfo != null) {
+            bytes = converted;
+            info = convertedInfo;
+          }
+        }
+      }
+
+      if (bytes == null || info == null) {
         rejected.add(file.name);
         continue;
       }
+
       images.add(
         SelectedImage(
           id: _nextId++,
