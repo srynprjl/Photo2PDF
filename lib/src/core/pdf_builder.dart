@@ -30,6 +30,20 @@ extension PageOrientationLabels on PageOrientation {
   };
 }
 
+/// How a photo sits on a fixed page (A4, Letter).
+enum ImageFit { fit, fill }
+
+extension ImageFitLabels on ImageFit {
+  String get label => switch (this) {
+    ImageFit.fit => 'Fit',
+    ImageFit.fill => 'Fill',
+  };
+
+  /// Fill scales the photo up until it covers the page and crops the overflow;
+  /// fit shrinks it until the whole photo is visible, which leaves the bands.
+  bool get fillsPage => this == ImageFit.fill;
+}
+
 /// How hard the photos are squeezed on the way into the PDF.
 enum CompressionLevel { original, balanced, small }
 
@@ -60,6 +74,7 @@ class PdfOptions {
     this.pageSize = PageSizeMode.a4,
     this.marginMm = 10,
     this.orientation = PageOrientation.auto,
+    this.imageFit = ImageFit.fit,
     this.compression = CompressionLevel.original,
     this.password,
   });
@@ -72,6 +87,11 @@ class PdfOptions {
   /// Page direction for fixed page sizes. `auto` turns each page to match its
   /// photo; the others are fixed. Photo-sized pages follow the photo anyway.
   final PageOrientation orientation;
+
+  /// Fit leaves white bands where the photo is shorter than the page; fill
+  /// crops the photo's edges so it covers the page. Photo-sized pages have the
+  /// photo's own shape, so this only matters for A4 and Letter.
+  final ImageFit imageFit;
 
   final CompressionLevel compression;
 
@@ -137,7 +157,9 @@ Future<Uint8List> buildPdf(
               bytes,
               dpi: isJpegBytes(bytes) ? null : _rasterDpi,
             ),
-            fit: pw.BoxFit.contain,
+            fit: options.imageFit.fillsPage
+                ? pw.BoxFit.cover
+                : pw.BoxFit.contain,
           ),
         ),
       ),

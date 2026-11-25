@@ -55,6 +55,20 @@ void main() {
     expect(loaded!.orientation, PageOrientation.vertical);
   });
 
+  test('remembers the fit or fill choice', () async {
+    await SettingsStore.instance.save(
+      const PdfSettings(
+        pageSize: PageSizeMode.a4,
+        marginMm: 10,
+        imageFit: ImageFit.fill,
+      ),
+    );
+
+    final PdfSettings? loaded = await SettingsStore.instance.load();
+
+    expect(loaded!.imageFit, ImageFit.fill);
+  });
+
   test('remembers the compression level', () async {
     await SettingsStore.instance.save(
       const PdfSettings(

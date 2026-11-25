@@ -14,6 +14,7 @@ with a Material 3 interface.
 | Reorder pages, remove one, clear all | Editing or cropping photos |
 | Page size: A4, Letter, or match the photo | Merging existing PDFs |
 | Page orientation: auto, vertical, horizontal | Printing, sharing |
+| Photo fit: fit inside the page, or fill it and crop | Printing, photo books |
 | Clear the whole photo list in one tap, with undo | Batch renaming, watermarks |
 | PDF → photos: one JPEG per page at 150 / 200 / 300 DPI | Scanning, OCR, sharing |
 | Compress photos on the way in (original / balanced / small) | Editing, cropping |
@@ -91,7 +92,7 @@ lib/src/screens/home_screen.dart           bottom bar: to PDF / to photos
 lib/src/screens/converter_screen.dart      photos to PDF and its state
 lib/src/screens/pdf_to_images_screen.dart  PDF to photos and its state
 lib/src/screens/settings_screen.dart       photo source + save folder
-lib/src/widgets/output_panel.dart          page size, orientation, margin, password
+lib/src/widgets/output_panel.dart          page size, orientation, fit/fill, margin
 lib/src/widgets/empty_state.dart           first-run empty state
 lib/src/widgets/image_card.dart            thumbnail row with drag handle
 lib/src/widgets/notices.dart               one snackbar style for both screens
@@ -128,6 +129,8 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Clear all photos from the list header or the app bar: a confirmation
       when three or more photos would go, one tap of undo either way
 - [x] Page orientation (auto / vertical / horizontal)
+- [x] Fit or fill the page; the panel scrolls its settings and keeps Create PDF
+      and Add photos in view
 - [x] On-the-fly compression (original / balanced / small)
 - [x] Password-protected PDFs
 - [x] PDF generation, JPEG passthrough, multi-format decode
@@ -194,11 +197,11 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 53 passing |
+| Unit tests | `flutter test` | 55 passing |
 | Locked PDF | Emulator + `qpdf` | the password-protected PDF made earlier opens after `test1234` (`Wrong password` reasks after a bad one, `Cancel` keeps the previous document), converts to 2 JPEGs at 1700×2200 that match a `pdftoppm` render of the qpdf-decrypted copy, and an unencrypted PDF still opens with no prompt |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF`; the page field shows `Will save 2 of 4 pages.` for `2-3` and writes only those two JPEGs, and `9` is refused with `Only pages 1–4 exist in this PDF.` |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF`; the page field shows `Will save 2 of 4 pages.` for `2-3` and writes only those two JPEGs, and `9` is refused with `Only pages 1–4 exist in this PDF.`; on an A4 page with a 0 mm margin the same photo is placed 650×842 at -27 mm with Fill (covers the sheet) and 595×771 at +36 mm with Fit (bands top and bottom) |
 
 Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.

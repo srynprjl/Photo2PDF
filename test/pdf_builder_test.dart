@@ -151,6 +151,28 @@ void main() {
       }
     });
 
+    test('fill covers the page without changing its size', () async {
+      // sample.jpg is 800x600 on a portrait A4 page, the case that leaves bars.
+      final List<List<double>> fitPages = pageSizes(
+        await buildPdf(
+          <SelectedImage>[_load('sample.jpg')],
+          const PdfOptions(orientation: PageOrientation.vertical),
+        ),
+      );
+      final Uint8List filled = await buildPdf(
+        <SelectedImage>[_load('sample.jpg')],
+        const PdfOptions(
+          orientation: PageOrientation.vertical,
+          imageFit: ImageFit.fill,
+        ),
+      );
+
+      expect(pageSizes(filled), fitPages, reason: 'only the photo moves');
+      expect(ImageFit.fill.fillsPage, isTrue);
+      expect(ImageFit.fit.fillsPage, isFalse);
+      expect(String.fromCharCodes(filled.take(5)), '%PDF-');
+    });
+
     test('compression makes a heavy photo much smaller', () async {
       // A noisy photo is what a camera roll is full of, and it is the case the
       // PNG-to-raw-pixels path cannot shrink on its own.

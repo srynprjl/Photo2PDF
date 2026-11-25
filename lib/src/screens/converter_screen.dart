@@ -202,10 +202,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                   children: <Widget>[
                     Expanded(child: _buildImageArea(context)),
                     const SizedBox(width: 24),
-                    SizedBox(
-                      width: 340,
-                      child: SingleChildScrollView(child: panel),
-                    ),
+                    SizedBox(width: 340, child: panel),
                   ],
                 ),
               );
@@ -217,12 +214,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: ConstrainedBox(
-                    // The options need room, or "Add photos" scrolls out of
-                    // sight on a phone once the navigation bar is accounted for.
+                    // The panel scrolls its own settings and keeps the buttons
+                    // visible, so this only has to leave the list some room.
                     constraints: BoxConstraints(
-                      maxHeight: constraints.maxHeight * 0.8,
+                      maxHeight: constraints.maxHeight * 0.65,
                     ),
-                    child: SingleChildScrollView(child: panel),
+                    child: panel,
                   ),
                 ),
               ],
@@ -365,6 +362,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
           pageSize: _settings.pageSize,
           marginMm: _settings.marginMm,
           orientation: _settings.orientation,
+          imageFit: _settings.imageFit,
           compression: _settings.compression,
           password: _password,
         ),

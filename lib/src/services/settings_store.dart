@@ -10,24 +10,28 @@ class PdfSettings {
     required this.pageSize,
     required this.marginMm,
     this.orientation = PageOrientation.auto,
+    this.imageFit = ImageFit.fit,
     this.compression = CompressionLevel.original,
   });
 
   final PageSizeMode pageSize;
   final double marginMm;
   final PageOrientation orientation;
+  final ImageFit imageFit;
   final CompressionLevel compression;
 
   PdfSettings copyWith({
     PageSizeMode? pageSize,
     double? marginMm,
     PageOrientation? orientation,
+    ImageFit? imageFit,
     CompressionLevel? compression,
   }) {
     return PdfSettings(
       pageSize: pageSize ?? this.pageSize,
       marginMm: marginMm ?? this.marginMm,
       orientation: orientation ?? this.orientation,
+      imageFit: imageFit ?? this.imageFit,
       compression: compression ?? this.compression,
     );
   }
@@ -41,6 +45,7 @@ class SettingsStore {
   static const String _pageSizeKey = 'pageSize';
   static const String _marginKey = 'marginMm';
   static const String _orientationKey = 'pageOrientation';
+  static const String _imageFitKey = 'imageFit';
   static const String _compressionKey = 'compression';
   static const String _saveFolderKey = 'saveFolder';
   static const String _photoSourceKey = 'photoSource';
@@ -61,10 +66,12 @@ class SettingsStore {
       final String? name = prefs.getString(_pageSizeKey);
       final double? margin = prefs.getDouble(_marginKey);
       final String? orientationName = prefs.getString(_orientationKey);
+      final String? imageFitName = prefs.getString(_imageFitKey);
       final String? compressionName = prefs.getString(_compressionKey);
       if (name == null &&
           margin == null &&
           orientationName == null &&
+          imageFitName == null &&
           compressionName == null) {
         return null;
       }
@@ -77,6 +84,7 @@ class SettingsStore {
           orientationName,
           PageOrientation.auto,
         ),
+        imageFit: _stored(ImageFit.values, imageFitName, ImageFit.fit),
         compression: _stored(
           CompressionLevel.values,
           compressionName,
@@ -95,6 +103,7 @@ class SettingsStore {
       await prefs.setString(_pageSizeKey, settings.pageSize.name);
       await prefs.setDouble(_marginKey, settings.marginMm);
       await prefs.setString(_orientationKey, settings.orientation.name);
+      await prefs.setString(_imageFitKey, settings.imageFit.name);
       await prefs.setString(_compressionKey, settings.compression.name);
     } on Exception {
       // Best effort: the current session keeps working without it.

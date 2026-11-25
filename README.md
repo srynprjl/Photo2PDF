@@ -19,6 +19,9 @@ vanishing.
 - Any format the system can decode: JPEG, PNG, WebP, BMP, HEIC, TIFF, GIF.
 - Page size **A4**, **Letter**, or **Fit image** (the page takes the photo's own
   shape); orientation **Auto**, **Vertical** or **Horizontal**.
+- **Fit** or **Fill**: fit keeps the whole photo and leaves white bands where
+  the shapes disagree; fill scales it up until it covers the page and crops the
+  edges. Only the fixed page sizes have bands to remove.
 - Margin slider from 0 to 30 mm, and a live preview of what each page will look
   like.
 - Compression: **Original** keeps a JPEG byte for byte and only rewrites other
@@ -77,7 +80,7 @@ Checks:
 
 ```bash
 flutter analyze                 # no issues
-flutter test                    # 53 tests
+flutter test                    # 55 tests
 ```
 
 ## Project layout
