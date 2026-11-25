@@ -23,6 +23,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   final List<SelectedImage> _images = <SelectedImage>[];
   PageSizeMode _pageSize = PageSizeMode.a4;
   double _marginMm = 10;
+  PageOrientation _orientation = PageOrientation.auto;
   SaveLocation _saveLocation = const SaveLocation();
   bool _busy = false;
 
@@ -40,6 +41,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       if (saved != null) {
         _pageSize = saved.pageSize;
         _marginMm = saved.marginMm;
+        _orientation = saved.orientation;
       }
       _saveLocation = location;
     });
@@ -60,9 +62,18 @@ class _ConverterScreenState extends State<ConverterScreen> {
     _rememberSettings();
   }
 
+  void _selectOrientation(PageOrientation orientation) {
+    setState(() => _orientation = orientation);
+    _rememberSettings();
+  }
+
   void _rememberSettings() {
     SettingsStore.instance.save(
-      PdfSettings(pageSize: _pageSize, marginMm: _marginMm),
+      PdfSettings(
+        pageSize: _pageSize,
+        marginMm: _marginMm,
+        orientation: _orientation,
+      ),
     );
   }
 
@@ -193,6 +204,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Widget _buildOptionsPanel(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     final bool marginDisabled = _pageSize == PageSizeMode.fitImage || _busy;
+    final bool orientationDisabled = marginDisabled;
 
     return Card(
       child: Padding(
@@ -228,6 +240,32 @@ class _ConverterScreenState extends State<ConverterScreen> {
               ],
             ),
             const SizedBox(height: 16),
+            Text(
+              'Orientation',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                for (final PageOrientation orientation in PageOrientation.values)
+                  ChoiceChip(
+                    label: Text(orientation.label),
+                    selected: _orientation == orientation,
+                    onSelected: orientationDisabled
+                        ? null
+                        : (bool selected) {
+                            if (selected) {
+                              _selectOrientation(orientation);
+                            }
+                          },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
             Row(
               children: <Widget>[
                 Text('Margin', style: theme.textTheme.bodyMedium),
@@ -255,7 +293,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             ),
             if (_pageSize == PageSizeMode.fitImage)
               Text(
-                'Pages match each photo, so the margin is not used.',
+                'Pages match each photo, so the margin and orientation are not used.',
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
@@ -341,7 +379,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       final Uint8List bytes = await buildPdf(
         List<SelectedImage>.of(_images),
-        PdfOptions(pageSize: _pageSize, marginMm: _marginMm),
+        PdfOptions(
+          pageSize: _pageSize,
+          marginMm: _marginMm,
+          orientation: _orientation,
+        ),
       );
       if (!mounted) return;
 

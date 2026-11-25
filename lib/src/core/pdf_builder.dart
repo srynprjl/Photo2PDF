@@ -16,13 +16,32 @@ extension PageSizeModeLabels on PageSizeMode {
   };
 }
 
+/// Which way up a fixed page goes.
+enum PageOrientation { auto, vertical, horizontal }
+
+extension PageOrientationLabels on PageOrientation {
+  String get label => switch (this) {
+    PageOrientation.auto => 'Auto',
+    PageOrientation.vertical => 'Vertical',
+    PageOrientation.horizontal => 'Horizontal',
+  };
+}
+
 class PdfOptions {
-  const PdfOptions({this.pageSize = PageSizeMode.a4, this.marginMm = 10});
+  const PdfOptions({
+    this.pageSize = PageSizeMode.a4,
+    this.marginMm = 10,
+    this.orientation = PageOrientation.auto,
+  });
 
   final PageSizeMode pageSize;
 
   /// White border around the image on fixed page sizes, in millimetres.
   final double marginMm;
+
+  /// Page direction for fixed page sizes. `auto` turns each page to match its
+  /// photo; the others are fixed. Photo-sized pages follow the photo anyway.
+  final PageOrientation orientation;
 }
 
 /// DPI used to turn pixels into points when the page should match the photo.
@@ -93,9 +112,15 @@ PdfPageFormat _pageFormatFor(SelectedImage image, PdfOptions options) {
       ? PdfPageFormat.a4
       : PdfPageFormat.letter;
 
-  // Turn the page on its side when the photo is landscape, so it fills more of
-  // the sheet instead of leaving two large white bands.
-  return image.isLandscape
+  // Auto turns the page on its side when the photo is landscape, so it fills
+  // more of the sheet instead of leaving two large white bands.
+  final bool landscape = switch (options.orientation) {
+    PageOrientation.auto => image.isLandscape,
+    PageOrientation.vertical => false,
+    PageOrientation.horizontal => true,
+  };
+
+  return landscape
       ? PdfPageFormat(base.height, base.width)
       : PdfPageFormat(base.width, base.height);
 }

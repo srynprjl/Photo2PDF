@@ -40,6 +40,20 @@ void main() {
     expect(loaded.marginMm, 30);
   });
 
+  test('remembers the page orientation', () async {
+    await SettingsStore.instance.save(
+      const PdfSettings(
+        pageSize: PageSizeMode.a4,
+        marginMm: 10,
+        orientation: PageOrientation.vertical,
+      ),
+    );
+
+    final PdfSettings? loaded = await SettingsStore.instance.load();
+
+    expect(loaded!.orientation, PageOrientation.vertical);
+  });
+
   test('starts with the default save location', () async {
     final SaveLocation location =
         await SettingsStore.instance.loadSaveLocation();

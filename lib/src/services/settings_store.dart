@@ -5,10 +5,15 @@ import 'save_location.dart';
 
 /// The parts of the output setup worth remembering between runs.
 class PdfSettings {
-  const PdfSettings({required this.pageSize, required this.marginMm});
+  const PdfSettings({
+    required this.pageSize,
+    required this.marginMm,
+    this.orientation = PageOrientation.auto,
+  });
 
   final PageSizeMode pageSize;
   final double marginMm;
+  final PageOrientation orientation;
 }
 
 class SettingsStore {
@@ -18,6 +23,7 @@ class SettingsStore {
 
   static const String _pageSizeKey = 'pageSize';
   static const String _marginKey = 'marginMm';
+  static const String _orientationKey = 'pageOrientation';
   static const String _saveFolderKey = 'saveFolder';
   static const String _askSaveKey = 'askWhereToSave';
 
@@ -27,7 +33,8 @@ class SettingsStore {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       final String? name = prefs.getString(_pageSizeKey);
       final double? margin = prefs.getDouble(_marginKey);
-      if (name == null && margin == null) {
+      final String? orientationName = prefs.getString(_orientationKey);
+      if (name == null && margin == null && orientationName == null) {
         return null;
       }
 
@@ -35,9 +42,14 @@ class SettingsStore {
         (PageSizeMode mode) => mode.name == name,
         orElse: () => PageSizeMode.a4,
       );
+      final PageOrientation orientation = PageOrientation.values.firstWhere(
+        (PageOrientation value) => value.name == orientationName,
+        orElse: () => PageOrientation.auto,
+      );
       return PdfSettings(
         pageSize: pageSize,
         marginMm: (margin ?? 10).clamp(0, 30).toDouble(),
+        orientation: orientation,
       );
     } on Exception {
       // Storage trouble must never block the app.
@@ -50,6 +62,7 @@ class SettingsStore {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString(_pageSizeKey, settings.pageSize.name);
       await prefs.setDouble(_marginKey, settings.marginMm);
+      await prefs.setString(_orientationKey, settings.orientation.name);
     } on Exception {
       // Best effort: the current session keeps working without it.
     }
