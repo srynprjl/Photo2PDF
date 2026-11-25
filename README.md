@@ -25,8 +25,12 @@ vanishing.
 - **Fit** or **Fill**: fit keeps the whole photo and leaves white bands where
   the shapes disagree; fill scales it up until it covers the page and crops the
   edges. Only the fixed page sizes have bands to remove.
-- Margin slider from 0 to 30 mm, and a live preview of what each page will look
-  like.
+- Margin slider from 0 to 30 mm, with the exact value in millimetres beside
+  it, and a line under the choices where one has a consequence: **Fill** says
+  it crops the edges so the photo covers the page, **Fit image** says the
+  margin and orientation are not used. The suggested file name and the folder
+  it will be saved to sit above the buttons, so both are known before **Create
+  PDF** is pressed.
 - Compression: **Original** keeps a JPEG byte for byte and only rewrites other
   formats; **Balanced** (~2000 px, quality 80) and **Small** (~1200 px, quality
   70) are for sharing by mail. A 4032 × 3024 test photo went 1.26 MB → 0.50 MB →
