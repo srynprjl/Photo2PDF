@@ -2,20 +2,12 @@ import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
-/// Photo container formats we can read.
-enum PhotoFormat { jpeg, png, webp, gif, bmp, tiff, tga, ico, psd, pnm, exr, pvr, other }
-
 /// What we need to know about a photo before it can go on a page.
 class PhotoInfo {
-  const PhotoInfo({
-    required this.width,
-    required this.height,
-    required this.format,
-  });
+  const PhotoInfo({required this.width, required this.height});
 
   final int width;
   final int height;
-  final PhotoFormat format;
 
   bool get isLandscape => width > height;
 }
@@ -31,11 +23,7 @@ class PhotoInfo {
 PhotoInfo? readPhotoInfo(Uint8List bytes) {
   final JpegInfo? jpeg = readJpegInfo(bytes);
   if (jpeg != null) {
-    return PhotoInfo(
-      width: jpeg.width,
-      height: jpeg.height,
-      format: PhotoFormat.jpeg,
-    );
+    return PhotoInfo(width: jpeg.width, height: jpeg.height);
   }
 
   final img.Decoder? decoder = img.findDecoderForData(bytes);
@@ -48,55 +36,18 @@ PhotoInfo? readPhotoInfo(Uint8List bytes) {
     if (info == null || info.width <= 0 || info.height <= 0) {
       return null;
     }
-    return PhotoInfo(
-      width: info.width,
-      height: info.height,
-      format: sniffFormat(bytes),
-    );
+    return PhotoInfo(width: info.width, height: info.height);
   } on Exception {
     return null;
   }
 }
 
-/// Identifies a format from its magic bytes, for the formats we display.
-PhotoFormat sniffFormat(Uint8List bytes) {
-  bool startsWith(List<int> magic, {int offset = 0}) {
-    if (bytes.length < offset + magic.length) return false;
-    for (int i = 0; i < magic.length; i++) {
-      if (bytes[offset + i] != magic[i]) return false;
-    }
-    return true;
-  }
-
-  if (startsWith(<int>[0xFF, 0xD8, 0xFF])) return PhotoFormat.jpeg;
-  if (startsWith(<int>[0x89, 0x50, 0x4E, 0x47])) return PhotoFormat.png;
-  if (startsWith(<int>[0x47, 0x49, 0x46, 0x38])) return PhotoFormat.gif;
-  if (startsWith(<int>[0x42, 0x4D])) return PhotoFormat.bmp;
-  if (startsWith(<int>[0x49, 0x49, 0x2A, 0x00]) ||
-      startsWith(<int>[0x4D, 0x4D, 0x00, 0x2A])) {
-    return PhotoFormat.tiff;
-  }
-  if (startsWith(<int>[0x38, 0x42, 0x50, 0x53])) return PhotoFormat.psd;
-  if (startsWith(<int>[0x52, 0x49, 0x46, 0x46]) &&
-      startsWith(<int>[0x57, 0x45, 0x42, 0x50], offset: 8)) {
-    return PhotoFormat.webp;
-  }
-  return PhotoFormat.other;
-}
-
 /// What we need from a JPEG before it can go on a PDF page.
 class JpegInfo {
-  const JpegInfo({
-    required this.width,
-    required this.height,
-    required this.components,
-  });
+  const JpegInfo({required this.width, required this.height});
 
   final int width;
   final int height;
-
-  /// 1 = greyscale, 3 = YCbCr, 4 = CMYK/YCCK.
-  final int components;
 }
 
 /// Reads the frame header (SOFn) of a JPEG to get its pixel dimensions.
@@ -151,11 +102,10 @@ JpegInfo? readJpegInfo(Uint8List bytes) {
       }
       final int height = (bytes[offset + 5] << 8) | bytes[offset + 6];
       final int width = (bytes[offset + 7] << 8) | bytes[offset + 8];
-      final int components = bytes[offset + 9];
       if (width == 0 || height == 0) {
         return null;
       }
-      return JpegInfo(width: width, height: height, components: components);
+      return JpegInfo(width: width, height: height);
     }
 
     offset += 2 + segmentLength;

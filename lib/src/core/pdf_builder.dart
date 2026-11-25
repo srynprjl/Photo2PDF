@@ -135,7 +135,7 @@ Future<Uint8List> buildPdf(
           child: pw.Image(
             pw.MemoryImage(
               bytes,
-              dpi: _isJpeg(bytes) ? null : _rasterDpi,
+              dpi: isJpegBytes(bytes) ? null : _rasterDpi,
             ),
             fit: pw.BoxFit.contain,
           ),
@@ -146,9 +146,6 @@ Future<Uint8List> buildPdf(
 
   return document.save();
 }
-
-bool _isJpeg(Uint8List bytes) =>
-    bytes.length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
 
 /// Squeezes a photo for the chosen [level], on the way into the PDF.
 ///

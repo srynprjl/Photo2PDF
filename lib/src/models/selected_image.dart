@@ -18,9 +18,7 @@ class SelectedImage {
 
   int get byteSize => bytes.length;
 
-  /// JPEG data can be embedded as-is; every other format has to be rasterised
-  /// into the PDF, which is where the size matters.
-  bool get isJpeg => bytes.length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+  bool get isJpeg => isJpegBytes(bytes);
 
   bool get isLandscape => width > height;
 
@@ -28,6 +26,11 @@ class SelectedImage {
 
   String get sizeLabel => formatBytes(byteSize);
 }
+
+/// JPEG data can be embedded as-is, which keeps the PDF small; every other
+/// format has to be rasterised first.
+bool isJpegBytes(Uint8List bytes) =>
+    bytes.length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
 
 /// Human readable file size, e.g. `812 KB` or `2.4 MB`.
 String formatBytes(int bytes) {

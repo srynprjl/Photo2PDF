@@ -17,6 +17,20 @@ class PdfSettings {
   final double marginMm;
   final PageOrientation orientation;
   final CompressionLevel compression;
+
+  PdfSettings copyWith({
+    PageSizeMode? pageSize,
+    double? marginMm,
+    PageOrientation? orientation,
+    CompressionLevel? compression,
+  }) {
+    return PdfSettings(
+      pageSize: pageSize ?? this.pageSize,
+      marginMm: marginMm ?? this.marginMm,
+      orientation: orientation ?? this.orientation,
+      compression: compression ?? this.compression,
+    );
+  }
 }
 
 class SettingsStore {
@@ -31,6 +45,14 @@ class SettingsStore {
   static const String _saveFolderKey = 'saveFolder';
   static const String _photoSourceKey = 'photoSource';
   static const String _askSaveKey = 'askWhereToSave';
+
+  /// Names stored on disk can outlive an enum, so an unknown one falls back to
+  /// the default instead of throwing.
+  static T _stored<T extends Enum>(List<T> values, String? name, T fallback) =>
+      values.firstWhere(
+        (T value) => value.name == name,
+        orElse: () => fallback,
+      );
 
   /// Returns the saved setup, or `null` on a first run.
   Future<PdfSettings?> load() async {
@@ -47,23 +69,19 @@ class SettingsStore {
         return null;
       }
 
-      final PageSizeMode pageSize = PageSizeMode.values.firstWhere(
-        (PageSizeMode mode) => mode.name == name,
-        orElse: () => PageSizeMode.a4,
-      );
-      final PageOrientation orientation = PageOrientation.values.firstWhere(
-        (PageOrientation value) => value.name == orientationName,
-        orElse: () => PageOrientation.auto,
-      );
-      final CompressionLevel compression = CompressionLevel.values.firstWhere(
-        (CompressionLevel value) => value.name == compressionName,
-        orElse: () => CompressionLevel.original,
-      );
       return PdfSettings(
-        pageSize: pageSize,
+        pageSize: _stored(PageSizeMode.values, name, PageSizeMode.a4),
         marginMm: (margin ?? 10).clamp(0, 30).toDouble(),
-        orientation: orientation,
-        compression: compression,
+        orientation: _stored(
+          PageOrientation.values,
+          orientationName,
+          PageOrientation.auto,
+        ),
+        compression: _stored(
+          CompressionLevel.values,
+          compressionName,
+          CompressionLevel.original,
+        ),
       );
     } on Exception {
       // Storage trouble must never block the app.
@@ -87,10 +105,10 @@ class SettingsStore {
   Future<PhotoSource> loadPhotoSource() async {
     try {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? name = prefs.getString(_photoSourceKey);
-      return PhotoSource.values.firstWhere(
-        (PhotoSource source) => source.name == name,
-        orElse: () => PhotoSource.gallery,
+      return _stored(
+        PhotoSource.values,
+        prefs.getString(_photoSourceKey),
+        PhotoSource.gallery,
       );
     } on Exception {
       return PhotoSource.gallery;

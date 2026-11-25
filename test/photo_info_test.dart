@@ -15,26 +15,24 @@ void main() {
       expect(info, isNotNull);
       expect(info!.width, 800);
       expect(info.height, 600);
-      expect(info.format, PhotoFormat.jpeg);
       expect(info.isLandscape, isTrue);
     });
 
     test('reads every other common photo format', () {
-      const Map<String, PhotoFormat> expected = <String, PhotoFormat>{
-        'sample.png': PhotoFormat.png,
-        'sample.webp': PhotoFormat.webp,
-        'sample.gif': PhotoFormat.gif,
-        'sample.bmp': PhotoFormat.bmp,
-        'sample.tiff': PhotoFormat.tiff,
-      };
+      const List<String> files = <String>[
+        'sample.png',
+        'sample.webp',
+        'sample.gif',
+        'sample.bmp',
+        'sample.tiff',
+      ];
 
-      expected.forEach((String file, PhotoFormat format) {
+      for (final String file in files) {
         final PhotoInfo? info = readPhotoInfo(_fixture(file));
         expect(info, isNotNull, reason: file);
         expect(info!.width, 800, reason: file);
         expect(info.height, 600, reason: file);
-        expect(info.format, format, reason: file);
-      });
+      }
     });
 
     test('returns null for data it cannot read', () {
@@ -46,11 +44,12 @@ void main() {
   });
 
   group('readJpegInfo', () {
-    test('reports the component count', () {
+    test('reads the frame header', () {
       final JpegInfo? info = readJpegInfo(_fixture('sample.jpg'));
 
       expect(info, isNotNull);
-      expect(info!.components, 3);
+      expect(info!.width, 800);
+      expect(info.height, 600);
     });
 
     test('ignores non-JPEG data', () {

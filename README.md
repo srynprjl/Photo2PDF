@@ -74,11 +74,11 @@ lib/main.dart                        app entry, starts the PDF engine
 lib/src/screens/home_screen.dart     bottom bar: to PDF / to photos
 lib/src/screens/converter_screen.dart      photos to PDF
 lib/src/screens/pdf_to_images_screen.dart  PDF to photos
-lib/src/screens/settings_screen.dart       folder, picker, permissions
+lib/src/screens/settings_screen.dart       photo source + save folder
 lib/src/core/pdf_builder.dart        page layout, compression, PDF assembly
 lib/src/core/pdf_encryption.dart     RC4 128-bit password protection
 lib/src/services/                    picking, saving, rendering, settings
-lib/src/widgets/                     photo card, live page preview
+lib/src/widgets/                     output panel, photo card, empty state, notices
 test/                                unit tests and image fixtures
 PLAN.md                              scope, milestones, known limitations
 ```

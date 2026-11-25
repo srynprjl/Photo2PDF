@@ -5,21 +5,13 @@ import 'package:pdfrx/pdfrx.dart';
 
 /// One page of a PDF, already turned into pixels.
 class PdfPageImage {
-  const PdfPageImage({
-    required this.number,
-    required this.bytes,
-    required this.width,
-    required this.height,
-  });
+  const PdfPageImage({required this.number, required this.bytes});
 
   /// 1-based page number.
   final int number;
 
   /// JPEG bytes.
   final Uint8List bytes;
-
-  final int width;
-  final int height;
 }
 
 class PdfPageRenderer {
@@ -50,7 +42,6 @@ class PdfPageRenderer {
     Uint8List bytes, {
     required String sourceName,
     required int dpi,
-    int quality = 85,
   }) async* {
     final PdfDocument document = await PdfDocument.openData(
       bytes,
@@ -69,24 +60,18 @@ class PdfPageRenderer {
           continue;
         }
 
-        final int width = raster.width;
-        final int height = raster.height;
+        // PDFium hands back BGRA, which is what the encoder expects to be told.
         final img.Image decoded = img.Image.fromBytes(
-          width: width,
-          height: height,
+          width: raster.width,
+          height: raster.height,
           bytes: raster.pixels.buffer,
           numChannels: 4,
           order: img.ChannelOrder.bgra,
         );
-        final Uint8List jpeg = img.encodeJpg(decoded, quality: quality);
+        final Uint8List jpeg = img.encodeJpg(decoded, quality: 85);
         raster.dispose();
 
-        yield PdfPageImage(
-          number: i + 1,
-          bytes: jpeg,
-          width: width,
-          height: height,
-        );
+        yield PdfPageImage(number: i + 1, bytes: jpeg);
       }
     } finally {
       await document.dispose();

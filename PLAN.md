@@ -90,10 +90,12 @@ lib/src/theme.dart                         Material 3 palette + component themes
 lib/src/screens/home_screen.dart           bottom bar: to PDF / to photos
 lib/src/screens/converter_screen.dart      photos to PDF and its state
 lib/src/screens/pdf_to_images_screen.dart  PDF to photos and its state
-lib/src/screens/settings_screen.dart       save folder + "ask each time" switch
+lib/src/screens/settings_screen.dart       photo source + save folder
+lib/src/widgets/output_panel.dart          page size, orientation, margin, password
 lib/src/widgets/empty_state.dart           first-run empty state
 lib/src/widgets/image_card.dart            thumbnail row with drag handle
-lib/src/core/photo_info.dart               format sniffing + JPEG header parser
+lib/src/widgets/notices.dart               one snackbar style for both screens
+lib/src/core/photo_info.dart               JPEG header parser + decoder probe
 lib/src/core/platform_decoder.dart         dart:ui fallback for HEIC/AVIF
 lib/src/core/pdf_builder.dart              page sizing, compression + PDF assembly
 lib/src/core/pdf_encryption.dart           RC4 128-bit password protection

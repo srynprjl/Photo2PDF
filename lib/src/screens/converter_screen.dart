@@ -8,9 +8,11 @@ import '../services/image_picker_service.dart';
 import '../services/pdf_saver.dart';
 import '../services/save_location.dart';
 import '../services/settings_store.dart';
-import 'settings_screen.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/image_card.dart';
+import '../widgets/notices.dart';
+import '../widgets/output_panel.dart';
+import 'settings_screen.dart';
 
 class ConverterScreen extends StatefulWidget {
   const ConverterScreen({super.key});
@@ -21,11 +23,14 @@ class ConverterScreen extends StatefulWidget {
 
 class _ConverterScreenState extends State<ConverterScreen> {
   final List<SelectedImage> _images = <SelectedImage>[];
-  PageSizeMode _pageSize = PageSizeMode.a4;
-  double _marginMm = 10;
-  PageOrientation _orientation = PageOrientation.auto;
-  CompressionLevel _compression = CompressionLevel.original;
+
+  PdfSettings _settings = const PdfSettings(
+    pageSize: PageSizeMode.a4,
+    marginMm: 10,
+  );
   PhotoSource _photoSource = PhotoSource.gallery;
+  SaveLocation _saveLocation = const SaveLocation();
+  bool _busy = false;
 
   /// Never persisted: a PDF password should not sit in the app's preferences.
   String? _password;
@@ -35,17 +40,15 @@ class _ConverterScreenState extends State<ConverterScreen> {
   final TextEditingController _passwordController = TextEditingController();
 
   @override
-  void dispose() {
-    _passwordController.dispose();
-    super.dispose();
-  }
-  SaveLocation _saveLocation = const SaveLocation();
-  bool _busy = false;
-
-  @override
   void initState() {
     super.initState();
     _restoreSettings();
+  }
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
   }
 
   Future<void> _restoreSettings() async {
@@ -54,20 +57,19 @@ class _ConverterScreenState extends State<ConverterScreen> {
     final PhotoSource source = await SettingsStore.instance.loadPhotoSource();
     if (!mounted) return;
     setState(() {
-      _photoSource = source;
       if (saved != null) {
-        _pageSize = saved.pageSize;
-        _marginMm = saved.marginMm;
-        _orientation = saved.orientation;
-        _compression = saved.compression;
+        _settings = saved;
       }
       _saveLocation = location;
+      _photoSource = source;
     });
   }
 
   Future<void> _openSettings() async {
     await Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (BuildContext context) => const SettingsScreen()),
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => const SettingsScreen(),
+      ),
     );
     if (!mounted) return;
     final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
@@ -79,19 +81,18 @@ class _ConverterScreenState extends State<ConverterScreen> {
     });
   }
 
-  void _selectPageSize(PageSizeMode mode) {
-    setState(() => _pageSize = mode);
+  /// A choice made in the panel: apply it, then remember it.
+  void _applySettings(PdfSettings next) {
+    setState(() => _settings = next);
     _rememberSettings();
   }
 
-  void _selectOrientation(PageOrientation orientation) {
-    setState(() => _orientation = orientation);
-    _rememberSettings();
+  void _dragMargin(double marginMm) {
+    setState(() => _settings = _settings.copyWith(marginMm: marginMm));
   }
 
-  void _selectCompression(CompressionLevel level) {
-    setState(() => _compression = level);
-    _rememberSettings();
+  void _rememberSettings() {
+    SettingsStore.instance.save(_settings);
   }
 
   Future<void> _editPassword() async {
@@ -99,7 +100,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
-        title: Text(_password == null ? 'Protect with a password' : 'Change the password'),
+        title: Text(
+          _password == null ? 'Protect with a password' : 'Change the password',
+        ),
         content: TextField(
           controller: _passwordController,
           autofocus: true,
@@ -122,20 +125,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
         ],
       ),
     );
-    final String value = _passwordController.text;
     if (confirmed != true || !mounted) return;
+    final String value = _passwordController.text;
     setState(() => _password = value.isEmpty ? null : value);
-  }
-
-  void _rememberSettings() {
-    SettingsStore.instance.save(
-      PdfSettings(
-        pageSize: _pageSize,
-        marginMm: _marginMm,
-        orientation: _orientation,
-        compression: _compression,
-      ),
-    );
   }
 
   int get _totalBytes =>
@@ -164,9 +156,23 @@ class _ConverterScreenState extends State<ConverterScreen> {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints constraints) {
-            final bool isWide = constraints.maxWidth >= 840;
+            final Widget panel = OutputPanel(
+              settings: _settings,
+              password: _password,
+              busy: _busy,
+              photoCount: _images.length,
+              fileName: _suggestedFileName(),
+              location: _saveLocation,
+              onSettingsChanged: _applySettings,
+              onMarginChanged: _dragMargin,
+              onMarginChangeEnd: _rememberSettings,
+              onEditPassword: _editPassword,
+              onRemovePassword: () => setState(() => _password = null),
+              onCreate: _createPdf,
+              onAddPhotos: _addImages,
+            );
 
-            if (isWide) {
+            if (constraints.maxWidth >= 840) {
               return Padding(
                 padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
                 child: Row(
@@ -176,9 +182,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     const SizedBox(width: 24),
                     SizedBox(
                       width: 340,
-                      child: SingleChildScrollView(
-                        child: _buildOptionsPanel(context),
-                      ),
+                      child: SingleChildScrollView(child: panel),
                     ),
                   ],
                 ),
@@ -191,15 +195,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: ConstrainedBox(
-                    // The page size, orientation, compression and password
-                    // rows need room, or "Add photos" scrolls out of sight on a
-                    // phone once the navigation bar is accounted for.
+                    // The options need room, or "Add photos" scrolls out of
+                    // sight on a phone once the navigation bar is accounted for.
                     constraints: BoxConstraints(
                       maxHeight: constraints.maxHeight * 0.8,
                     ),
-                    child: SingleChildScrollView(
-                      child: _buildOptionsPanel(context),
-                    ),
+                    child: SingleChildScrollView(child: panel),
                   ),
                 ),
               ],
@@ -225,7 +226,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  '${_images.length} photo${_images.length == 1 ? '' : 's'} · ${formatBytes(_totalBytes)}',
+                  '${_images.length} photo${_images.length == 1 ? '' : 's'} · '
+                  '${formatBytes(_totalBytes)}',
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.titleSmall,
                 ),
@@ -245,7 +247,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
             padding: const EdgeInsets.only(bottom: 8, top: 2),
             itemCount: _images.length,
             onReorderItem: _reorder,
-            proxyDecorator: (Widget child, int index, Animation<double> animation) {
+            proxyDecorator:
+                (Widget child, int index, Animation<double> animation) {
               return Material(color: Colors.transparent, child: child);
             },
             itemBuilder: (BuildContext context, int index) {
@@ -260,205 +263,6 @@ class _ConverterScreenState extends State<ConverterScreen> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildOptionsPanel(BuildContext context) {
-    final ThemeData theme = Theme.of(context);
-    final bool marginDisabled = _pageSize == PageSizeMode.fitImage || _busy;
-    final bool orientationDisabled = marginDisabled;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            Text('Output', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 12),
-            Text(
-              'Page size',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                for (final PageSizeMode mode in PageSizeMode.values)
-                  ChoiceChip(
-                    label: Text(mode.label),
-                    selected: _pageSize == mode,
-                    onSelected: _busy
-                        ? null
-                        : (bool selected) {
-                            if (selected) {
-                              _selectPageSize(mode);
-                            }
-                          },
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Orientation',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                for (final PageOrientation orientation in PageOrientation.values)
-                  ChoiceChip(
-                    label: Text(orientation.label),
-                    selected: _orientation == orientation,
-                    onSelected: orientationDisabled
-                        ? null
-                        : (bool selected) {
-                            if (selected) {
-                              _selectOrientation(orientation);
-                            }
-                          },
-                  ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: <Widget>[
-                Text('Margin', style: theme.textTheme.bodyMedium),
-                const Spacer(),
-                Text(
-                  '${_marginMm.round()} mm',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            Slider(
-              value: _marginMm,
-              max: 30,
-              divisions: 30,
-              label: '${_marginMm.round()} mm',
-              onChanged: marginDisabled
-                  ? null
-                  : (double value) => setState(() => _marginMm = value),
-              onChangeEnd: marginDisabled
-                  ? null
-                  : (double value) => _rememberSettings(),
-            ),
-            if (_pageSize == PageSizeMode.fitImage)
-              Text(
-                'Pages match each photo, so the margin and orientation are not used.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            const SizedBox(height: 16),
-            Text(
-              'Compression',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 8),
-            SegmentedButton<CompressionLevel>(
-              showSelectedIcon: false,
-              segments: <ButtonSegment<CompressionLevel>>[
-                for (final CompressionLevel level in CompressionLevel.values)
-                  ButtonSegment<CompressionLevel>(
-                    value: level,
-                    label: Text(level.label),
-                  ),
-              ],
-              selected: <CompressionLevel>{_compression},
-              onSelectionChanged: _busy
-                  ? null
-                  : (Set<CompressionLevel> selection) =>
-                      _selectCompression(selection.first),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: <Widget>[
-                Icon(
-                  _password == null ? Icons.lock_open_outlined : Icons.lock_outline,
-                  size: 18,
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _password == null ? 'No password' : 'Password protected',
-                    style: theme.textTheme.bodyMedium,
-                  ),
-                ),
-                if (_password != null)
-                  IconButton(
-                    tooltip: 'Remove password',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _busy ? null : () => setState(() => _password = null),
-                    icon: const Icon(Icons.close, size: 18),
-                  ),
-                TextButton(
-                  onPressed: _busy ? null : _editPassword,
-                  child: Text(_password == null ? 'Add' : 'Change'),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            if (_images.isNotEmpty) ...<Widget>[
-              Text(
-                'Output file',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _suggestedFileName(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                _saveLocation.askEveryTime
-                    ? 'You pick the folder when saving.'
-                    : 'Saves to ${saveLocationLabel(_saveLocation)}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            FilledButton.icon(
-              onPressed: _images.isEmpty || _busy ? null : _createPdf,
-              icon: _busy
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.picture_as_pdf_outlined),
-              label: Text(_busy ? 'Creating PDF…' : 'Create PDF'),
-            ),
-            const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: _busy ? null : _addImages,
-              icon: const Icon(Icons.add_photo_alternate_outlined),
-              label: const Text('Add photos'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -494,10 +298,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
       final Uint8List bytes = await buildPdf(
         List<SelectedImage>.of(_images),
         PdfOptions(
-          pageSize: _pageSize,
-          marginMm: _marginMm,
-          orientation: _orientation,
-          compression: _compression,
+          pageSize: _settings.pageSize,
+          marginMm: _settings.marginMm,
+          orientation: _settings.orientation,
+          compression: _settings.compression,
           password: _password,
         ),
       );
@@ -517,9 +321,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             : 'Save cancelled',
       );
     } catch (error) {
-      if (mounted) {
-        _notify('Could not create the PDF: $error', isError: true);
-      }
+      _notify('Could not create the PDF: $error', isError: true);
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -616,19 +418,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   void _notify(String message, {bool isError = false}) {
-    if (!mounted) return;
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            message,
-            style: isError ? TextStyle(color: scheme.onErrorContainer) : null,
-          ),
-          backgroundColor: isError ? scheme.errorContainer : null,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    if (mounted) {
+      showNotice(context, message, isError: isError);
+    }
   }
 }

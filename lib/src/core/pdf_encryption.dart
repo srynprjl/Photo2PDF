@@ -25,14 +25,11 @@ const List<int> _padding = <int>[
 /// its text cannot be opened without the password. PDF viewers accept it
 /// everywhere, including the Android viewers people are likely to use.
 ///
-/// RC4 is only as strong as the password, so the UI asks for one rather than
-/// making it optional, and the password is never stored on disk.
+/// RC4 is only as strong as the password, and the password is never stored on
+/// disk: it lives in the screen's state and disappears with the app.
 class PdfPasswordProtection extends PdfEncryption {
-  PdfPasswordProtection(
-    PdfDocument document, {
-    required String password,
-    this.permissions = -4,
-  })  : _userPassword = password,
+  PdfPasswordProtection(PdfDocument document, {required String password})
+      : _userPassword = password,
         super(document) {
     final Uint8List ownerValue = _ownerValue();
     _fileKey = _fileKeyFor(document, ownerValue);
@@ -42,7 +39,7 @@ class PdfPasswordProtection extends PdfEncryption {
     params['/V'] = const PdfNum(2);
     params['/R'] = const PdfNum(3);
     params['/Length'] = const PdfNum(128);
-    params['/P'] = PdfNum(permissions);
+    params['/P'] = const PdfNum(_permissions);
     params['/O'] = PdfString(ownerValue, format: PdfStringFormat.binary, encrypted: false);
     params['/U'] = PdfString(userValue, format: PdfStringFormat.binary, encrypted: false);
   }
@@ -50,8 +47,9 @@ class PdfPasswordProtection extends PdfEncryption {
   final String _userPassword;
 
   /// `/P` in the security dictionary: what the reader may do once opened.
-  /// The default allows everything, including printing and copying.
-  final int permissions;
+  /// Every bit of permission is set, so printing and copying stay allowed;
+  /// the password only controls who may open the document.
+  static const int _permissions = -4;
 
   late final Uint8List _fileKey;
 
@@ -90,7 +88,7 @@ class PdfPasswordProtection extends PdfEncryption {
 
   Uint8List _fileKeyFor(PdfDocument document, Uint8List ownerValue) {
     final ByteData permissionBits = ByteData(4)
-      ..setInt32(0, permissions, Endian.little);
+      ..setInt32(0, _permissions, Endian.little);
 
     Uint8List digest = _md5(<int>[
       ..._paddedPassword(_userPassword),

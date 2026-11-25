@@ -8,6 +8,7 @@ import '../services/page_saver.dart';
 import '../services/pdf_page_renderer.dart';
 import '../services/save_location.dart';
 import '../services/settings_store.dart';
+import '../widgets/notices.dart';
 
 /// Turns every page of a PDF into a JPEG.
 class PdfToImagesScreen extends StatefulWidget {
@@ -117,17 +118,9 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
   }
 
   void _notify(String message, {bool isError = false}) {
-    if (!mounted) return;
-    final ColorScheme scheme = Theme.of(context).colorScheme;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: isError ? scheme.errorContainer : null,
-          showCloseIcon: isError,
-        ),
-      );
+    if (mounted) {
+      showNotice(context, message, isError: isError);
+    }
   }
 
   @override
