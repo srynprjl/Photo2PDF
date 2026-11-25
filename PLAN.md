@@ -108,11 +108,13 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 
 ### M1 — Everyday usability
 
-- Desktop drag & drop of files onto the window (`desktop_drop`).
-- Show the output file name in the options panel.
-- Remember the last page size and margin (`shared_preferences`).
-- Bake EXIF orientation, so phone photos never come out sideways.
-- Downscale huge photos for `Fit photo` pages to keep the PDF small.
+- [x] Show the output file name in the options panel.
+- [x] Remember the last page size and margin (`shared_preferences`).
+- [x] Bake EXIF orientation, so phone photos never come out sideways.
+- [x] Keep raster photos from bloating the PDF: anything that is not a JPEG is
+      resampled to 300 DPI for the page (measured: a 4032×3024 PNG page went
+      from 31.1 MB to 17.2 MB, while the same JPEG stayed at 1.26 MB).
+- [ ] Desktop drag & drop of files onto the window (`desktop_drop`).
 
 ### M2 — Release readiness
 
@@ -130,8 +132,9 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
   decoder would close the gap.
 - **Memory** — picked files are held in memory (a few MB each; HEIC transcodes
   to PNG). Fine for tens of photos; M2 adds a cap.
-- **EXIF rotation** — phone photos may be stored rotated; until M1 rotates them,
-  a sideways photo stays sideways.
+- **EXIF metadata** — a photo that needs rotation has its EXIF block dropped
+  when the pixels are baked (which also removes GPS and device serial numbers).
+  Photos that are already upright keep their original bytes.
 - **Android saving** — no cross-platform "Save as" dialog: the file goes to the
   public Downloads folder via MediaStore, falling back to the app's own files
   directory. A share sheet (`share_plus`) is the natural follow-up.
@@ -144,10 +147,10 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 9 passing |
+| Unit tests | `flutter test` | 15 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF in Downloads |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF in Downloads; rotated JPEG shows upright; page size survives a restart |
 
 Not yet exercised: a physical phone, the GTK / Win32 save dialog on desktop,
 desktop HEIC, and drag-to-reorder on a device.
