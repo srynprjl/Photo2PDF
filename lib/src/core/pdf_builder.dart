@@ -32,6 +32,12 @@ const double _imageDpi = 150;
 /// PDF viewers reject pages larger than 14400 points per side.
 const double _maxPageSide = 14400;
 
+/// Print resolution used for photos that have to be rasterised (PNG, WebP,
+/// HEIC...). Without it a 12 MP photo becomes a 31 MB raw RGB stream; at
+/// 300 DPI it is still a sharp A4 page for a fraction of the size. JPEGs skip
+/// this: their compressed stream is small and is embedded untouched.
+const double _rasterDpi = 300;
+
 /// Builds a single PDF with one page per photo, in the given order.
 ///
 /// JPEG bytes are embedded as-is (no re-encoding), so the output stays small and
@@ -58,7 +64,10 @@ Future<Uint8List> buildPdf(
         margin: margin,
         build: (pw.Context context) => pw.Center(
           child: pw.Image(
-            pw.MemoryImage(image.bytes),
+            pw.MemoryImage(
+              image.bytes,
+              dpi: image.isJpeg ? null : _rasterDpi,
+            ),
             fit: pw.BoxFit.contain,
           ),
         ),

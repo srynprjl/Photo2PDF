@@ -18,6 +18,10 @@ class SelectedImage {
 
   int get byteSize => bytes.length;
 
+  /// JPEG data can be embedded as-is; every other format has to be rasterised
+  /// into the PDF, which is where the size matters.
+  bool get isJpeg => bytes.length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+
   bool get isLandscape => width > height;
 
   String get dimensionsLabel => '$width × $height';
