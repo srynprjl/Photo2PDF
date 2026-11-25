@@ -14,6 +14,7 @@ with a Material 3 interface.
 | Reorder pages, remove one, clear all | Editing or cropping photos |
 | Page size: A4, Letter, or match the photo | Merging existing PDFs |
 | Page orientation: auto, vertical, horizontal | Printing, sharing |
+| Clear the whole photo list in one tap, with undo | Batch renaming, watermarks |
 | Compress photos on the way in (original / balanced / small) | Editing, cropping |
 | Password-protect the PDF | Watermarks, signatures |
 | Photos from the gallery (default) or the file browser | Camera capture, cloud drives |
@@ -116,6 +117,7 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Pick photos, validate them, show a thumbnail list
 - [x] Reorder, remove, clear all
 - [x] Page size (A4 / Letter / fit photo) + margin
+- [x] Clear all photos from the list header or the app bar, one tap of undo
 - [x] Page orientation (auto / vertical / horizontal)
 - [x] On-the-fly compression (original / balanced / small)
 - [x] Password-protected PDFs
