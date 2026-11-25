@@ -14,6 +14,8 @@ with a Material 3 interface.
 | Reorder pages, remove one, clear all | Editing or cropping photos |
 | Page size: A4, Letter, or match the photo | Merging existing PDFs |
 | Page orientation: auto, vertical, horizontal | Printing, sharing |
+| Compress photos on the way in (original / balanced / small) | Editing, cropping |
+| Password-protect the PDF | Watermarks, signatures |
 | Photos from the gallery (default) or the file browser | Camera capture, cloud drives |
 | Adjustable white margin | Cloud upload / accounts |
 | Save the PDF to disk | Printing, in-app sharing |
@@ -89,7 +91,8 @@ lib/src/widgets/empty_state.dart           first-run empty state
 lib/src/widgets/image_card.dart            thumbnail row with drag handle
 lib/src/core/photo_info.dart               format sniffing + JPEG header parser
 lib/src/core/platform_decoder.dart         dart:ui fallback for HEIC/AVIF
-lib/src/core/pdf_builder.dart              page sizing + PDF assembly
+lib/src/core/pdf_builder.dart              page sizing, compression + PDF assembly
+lib/src/core/pdf_encryption.dart           RC4 128-bit password protection
 lib/src/models/selected_image.dart         photo model + size formatting
 lib/src/services/image_picker_service.dart file picking, validation, transcoding
 lib/src/services/pdf_saver.dart            platform-aware saving
@@ -114,6 +117,8 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Reorder, remove, clear all
 - [x] Page size (A4 / Letter / fit photo) + margin
 - [x] Page orientation (auto / vertical / horizontal)
+- [x] On-the-fly compression (original / balanced / small)
+- [x] Password-protected PDFs
 - [x] PDF generation, JPEG passthrough, multi-format decode
 - [x] Save to disk per platform, into `Downloads/Photo2PDF` by default
 - [x] Unit tests for format parsing and PDF output (30 tests)
@@ -152,6 +157,13 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - **EXIF metadata** — a photo that needs rotation has its EXIF block dropped
   when the pixels are baked (which also removes GPS and device serial numbers).
   Photos that are already upright keep their original bytes.
+- **PDF password** — the standard security handler (RC4 128 bit, PDF 1.4) is
+  used because every viewer accepts it; AES-256 would be stronger but is not
+  what older Android viewers understand. The password is held in memory only
+  and is never written to the app's preferences.
+- **Compression cost** — `balanced` and `small` re-encode every photo as JPEG,
+  which discards transparency and takes a moment per photo on a phone. Photos
+  that are already small still get re-encoded; `original` leaves bytes alone.
 - **Android saving** — an app may write into its own folder in Downloads
   without asking, so the default is `Downloads/Photo2PDF`; any other location
   needs the "Ask each time" dialog. A share sheet (`share_plus`) is the natural
@@ -165,10 +177,10 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 36 passing |
+| Unit tests | `flutter test` | 42 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one |
 
 Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.
