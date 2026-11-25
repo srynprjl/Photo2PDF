@@ -67,14 +67,29 @@ String freeFilePath(
   final String prefix = directory.endsWith(separator) || directory.endsWith('/')
       ? directory
       : '$directory$separator';
-  final String stem =
-      fileName.replaceFirst(RegExp(r'\.pdf$', caseSensitive: false), '');
+  final Match? extension = RegExp(r'\.[^./\\]+$').firstMatch(fileName);
+  final String stem = extension == null
+      ? fileName
+      : fileName.substring(0, extension.start);
+  final String suffix = extension?.group(0) ?? '';
 
   String candidate = '$prefix$fileName';
-  for (int counter = 2; taken(candidate); counter++) {
-    candidate = '$prefix$stem ($counter).pdf';
+  // Bounded so a broken "is it taken" answer can never spin forever.
+  for (int counter = 2; counter < 1000 && taken(candidate); counter++) {
+    candidate = '$prefix$stem ($counter)$suffix';
   }
   return candidate;
+}
+
+/// `holiday-page-3.jpg`: one photo per page, named after the document that
+/// produced it and safe for every file system.
+String pageFileName(String sourceName, int number) {
+  final String stem = sourceName.replaceFirst(
+    RegExp(r'\.pdf$', caseSensitive: false),
+    '',
+  );
+  final String safe = stem.replaceAll(RegExp(r'[^A-Za-z0-9 _.-]'), '_').trim();
+  return '${safe.isEmpty ? 'page' : safe}-page-$number.jpg';
 }
 
 /// Shortens an absolute path so it fits in a snackbar: `~/Downloads/x.pdf`.

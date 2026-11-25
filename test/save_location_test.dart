@@ -44,6 +44,27 @@ void main() {
         '/tmp/pdf/scan (3).pdf',
       );
     });
+
+    test('keeps the extension it was given', () {
+      expect(
+        freeFilePath(
+          '/tmp/pdf',
+          'scan-page-2.jpg',
+          isTaken: (String path) => path == '/tmp/pdf/scan-page-2.jpg',
+        ),
+        '/tmp/pdf/scan-page-2 (2).jpg',
+      );
+    });
+  });
+
+  group('pageFileName', () {
+    test('names a photo after the PDF and its page', () {
+      expect(pageFileName('holiday.pdf', 3), 'holiday-page-3.jpg');
+    });
+
+    test('drops characters a file system may refuse', () {
+      expect(pageFileName('2026/notes: final.pdf', 1), '2026_notes_ final-page-1.jpg');
+    });
   });
 
   test('prettyPath hides the home folder', () {
