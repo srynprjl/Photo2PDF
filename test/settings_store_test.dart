@@ -55,6 +55,20 @@ void main() {
     expect(loaded!.orientation, PageOrientation.vertical);
   });
 
+  test('remembers the compression level', () async {
+    await SettingsStore.instance.save(
+      const PdfSettings(
+        pageSize: PageSizeMode.a4,
+        marginMm: 10,
+        compression: CompressionLevel.small,
+      ),
+    );
+
+    final PdfSettings? loaded = await SettingsStore.instance.load();
+
+    expect(loaded!.compression, CompressionLevel.small);
+  });
+
   test('starts with the gallery as the photo source', () async {
     expect(await SettingsStore.instance.loadPhotoSource(), PhotoSource.gallery);
   });

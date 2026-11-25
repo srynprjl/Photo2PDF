@@ -24,7 +24,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
   PageSizeMode _pageSize = PageSizeMode.a4;
   double _marginMm = 10;
   PageOrientation _orientation = PageOrientation.auto;
+  CompressionLevel _compression = CompressionLevel.original;
   PhotoSource _photoSource = PhotoSource.gallery;
+
+  /// Never persisted: a PDF password should not sit in the app's preferences.
+  String? _password;
   SaveLocation _saveLocation = const SaveLocation();
   bool _busy = false;
 
@@ -45,6 +49,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         _pageSize = saved.pageSize;
         _marginMm = saved.marginMm;
         _orientation = saved.orientation;
+        _compression = saved.compression;
       }
       _saveLocation = location;
     });
@@ -74,12 +79,53 @@ class _ConverterScreenState extends State<ConverterScreen> {
     _rememberSettings();
   }
 
+  void _selectCompression(CompressionLevel level) {
+    setState(() => _compression = level);
+    _rememberSettings();
+  }
+
+  Future<void> _editPassword() async {
+    final TextEditingController controller =
+        TextEditingController(text: _password ?? '');
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) => AlertDialog(
+        title: Text(_password == null ? 'Protect with a password' : 'Change the password'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          obscureText: true,
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            helperText: 'Asked for when the PDF is opened. Never saved.',
+          ),
+          onSubmitted: (String _) => Navigator.of(context).pop(true),
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Use password'),
+          ),
+        ],
+      ),
+    );
+    final String value = controller.text;
+    controller.dispose();
+    if (confirmed != true || !mounted) return;
+    setState(() => _password = value.isEmpty ? null : value);
+  }
+
   void _rememberSettings() {
     SettingsStore.instance.save(
       PdfSettings(
         pageSize: _pageSize,
         marginMm: _marginMm,
         orientation: _orientation,
+        compression: _compression,
       ),
     );
   }
@@ -140,7 +186,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
                     // The page size, orientation and save rows need room, or
                     // "Add photos" scrolls out of sight on a phone.
                     constraints: BoxConstraints(
-                      maxHeight: constraints.maxHeight * 0.68,
+                      maxHeight: constraints.maxHeight * 0.72,
                     ),
                     child: SingleChildScrollView(
                       child: _buildOptionsPanel(context),
@@ -307,6 +353,57 @@ class _ConverterScreenState extends State<ConverterScreen> {
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+            const SizedBox(height: 16),
+            Text(
+              'Compression',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<CompressionLevel>(
+              showSelectedIcon: false,
+              segments: <ButtonSegment<CompressionLevel>>[
+                for (final CompressionLevel level in CompressionLevel.values)
+                  ButtonSegment<CompressionLevel>(
+                    value: level,
+                    label: Text(level.label),
+                  ),
+              ],
+              selected: <CompressionLevel>{_compression},
+              onSelectionChanged: _busy
+                  ? null
+                  : (Set<CompressionLevel> selection) =>
+                      _selectCompression(selection.first),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: <Widget>[
+                Icon(
+                  _password == null ? Icons.lock_open_outlined : Icons.lock_outline,
+                  size: 18,
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _password == null ? 'No password' : 'Password protected',
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+                if (_password != null)
+                  IconButton(
+                    tooltip: 'Remove password',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _busy ? null : () => setState(() => _password = null),
+                    icon: const Icon(Icons.close, size: 18),
+                  ),
+                TextButton(
+                  onPressed: _busy ? null : _editPassword,
+                  child: Text(_password == null ? 'Add' : 'Change'),
+                ),
+              ],
+            ),
             const Divider(height: 24),
             if (_images.isNotEmpty) ...<Widget>[
               Text(
@@ -393,6 +490,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
           pageSize: _pageSize,
           marginMm: _marginMm,
           orientation: _orientation,
+          compression: _compression,
+          password: _password,
         ),
       );
       if (!mounted) return;
@@ -407,6 +506,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       _notify(
         result.saved
             ? 'Saved to ${result.displayPath ?? result.path}'
+                '${_password == null ? '' : ' (password protected)'}'
             : 'Save cancelled',
       );
     } catch (error) {

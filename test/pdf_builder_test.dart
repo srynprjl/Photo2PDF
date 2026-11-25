@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:photo2pdf/src/core/pdf_builder.dart';
 import 'package:photo2pdf/src/core/photo_info.dart';
 import 'package:photo2pdf/src/models/selected_image.dart';
@@ -15,6 +17,33 @@ SelectedImage _load(String name, {int id = 1}) {
     bytes: bytes,
     width: info.width,
     height: info.height,
+  );
+}
+
+/// A photo-like PNG: soft gradients plus grain, so it resists flate and shows
+/// what compression is for.
+SelectedImage _photoLike(int width, int height) {
+  final img.Image image = img.Image(width: width, height: height);
+  final math.Random random = math.Random(7);
+  for (int y = 0; y < height; y++) {
+    for (int x = 0; x < width; x++) {
+      final int base = ((x * 255) ~/ width + (y * 255) ~/ height) ~/ 2;
+      image.setPixelRgb(
+        x,
+        y,
+        (base + random.nextInt(50)).clamp(0, 255),
+        (base ~/ 2 + random.nextInt(50)).clamp(0, 255),
+        (255 - base + random.nextInt(50)).clamp(0, 255),
+      );
+    }
+  }
+  final Uint8List bytes = img.encodePng(image);
+  return SelectedImage(
+    id: 99,
+    name: 'photo.png',
+    bytes: bytes,
+    width: width,
+    height: height,
   );
 }
 
@@ -120,6 +149,64 @@ void main() {
       for (final List<double> size in pages) {
         expect(size[0], greaterThan(size[1]));
       }
+    });
+
+    test('compression makes a heavy photo much smaller', () async {
+      // A noisy photo is what a camera roll is full of, and it is the case the
+      // PNG-to-raw-pixels path cannot shrink on its own.
+      final SelectedImage photo = _photoLike(900, 700);
+
+      final Uint8List plain = await buildPdf(<SelectedImage>[photo], const PdfOptions());
+      final Uint8List small = await buildPdf(
+        <SelectedImage>[photo],
+        const PdfOptions(compression: CompressionLevel.small),
+      );
+
+      expect(small.length, lessThan(plain.length ~/ 4));
+      expect(String.fromCharCodes(small.take(5)), '%PDF-');
+    });
+
+    test('original compression leaves the bytes alone', () async {
+      final SelectedImage photo = _photoLike(320, 240);
+
+      final Uint8List plain = await buildPdf(<SelectedImage>[photo], const PdfOptions());
+      final Uint8List again = await buildPdf(
+        <SelectedImage>[photo],
+        const PdfOptions(compression: CompressionLevel.original),
+      );
+
+      expect(again.length, plain.length);
+    });
+
+    test('compression keeps the photo the right way round', () async {
+      final List<List<double>> pages = pageSizes(
+        await buildPdf(
+          <SelectedImage>[_load('sample.jpg')],
+          const PdfOptions(compression: CompressionLevel.balanced),
+        ),
+      );
+
+      expect(pages.first[0], greaterThan(pages.first[1]));
+    });
+
+    test('locks the document when a password is given', () async {
+      final Uint8List locked = await buildPdf(
+        <SelectedImage>[_load('sample.jpg')],
+        const PdfOptions(password: 'hunter2'),
+      );
+      final String text = String.fromCharCodes(locked);
+
+      expect(text.contains('/Encrypt'), isTrue);
+      expect(text.contains('/Standard'), isTrue);
+      expect(text.contains('/R 3'), isTrue);
+    });
+
+    test('leaves the document open without a password', () async {
+      final String text = String.fromCharCodes(
+        await buildPdf(<SelectedImage>[_load('sample.jpg')], const PdfOptions()),
+      );
+
+      expect(text.contains('/Encrypt'), isFalse);
     });
 
     test('rejects an empty image list', () {

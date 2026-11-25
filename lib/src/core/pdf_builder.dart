@@ -1,9 +1,12 @@
+import 'dart:math' as math;
 import 'dart:typed_data';
 
+import 'package:image/image.dart' as img;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/selected_image.dart';
+import 'pdf_encryption.dart';
 
 /// How the page is sized for each image.
 enum PageSizeMode { a4, letter, fitImage }
@@ -27,11 +30,38 @@ extension PageOrientationLabels on PageOrientation {
   };
 }
 
+/// How hard the photos are squeezed on the way into the PDF.
+enum CompressionLevel { original, balanced, small }
+
+extension CompressionLevelLabels on CompressionLevel {
+  String get label => switch (this) {
+    CompressionLevel.original => 'Original',
+    CompressionLevel.balanced => 'Balanced',
+    CompressionLevel.small => 'Small',
+  };
+
+  /// Longest side a photo is allowed to keep, or 0 for untouched. Every level
+  /// except `original` re-encodes as JPEG, which is what makes PDFs small.
+  int get maxSidePixels => switch (this) {
+    CompressionLevel.original => 0,
+    CompressionLevel.balanced => 2000,
+    CompressionLevel.small => 1280,
+  };
+
+  int get jpegQuality => switch (this) {
+    CompressionLevel.original => 100,
+    CompressionLevel.balanced => 80,
+    CompressionLevel.small => 60,
+  };
+}
+
 class PdfOptions {
   const PdfOptions({
     this.pageSize = PageSizeMode.a4,
     this.marginMm = 10,
     this.orientation = PageOrientation.auto,
+    this.compression = CompressionLevel.original,
+    this.password,
   });
 
   final PageSizeMode pageSize;
@@ -42,6 +72,13 @@ class PdfOptions {
   /// Page direction for fixed page sizes. `auto` turns each page to match its
   /// photo; the others are fixed. Photo-sized pages follow the photo anyway.
   final PageOrientation orientation;
+
+  final CompressionLevel compression;
+
+  /// When set, the PDF can only be opened with this password.
+  final String? password;
+
+  bool get hasPassword => password != null && password!.isNotEmpty;
 }
 
 /// DPI used to turn pixels into points when the page should match the photo.
@@ -76,16 +113,29 @@ Future<Uint8List> buildPdf(
       ? pw.EdgeInsets.zero
       : pw.EdgeInsets.all(options.marginMm * PdfPageFormat.mm);
 
-  for (final SelectedImage image in images) {
+  if (options.hasPassword) {
+    document.document.encryption = PdfPasswordProtection(
+      document.document,
+      password: options.password!,
+    );
+  }
+
+  final List<Uint8List> prepared = <Uint8List>[
+    for (final SelectedImage image in images)
+      await _prepareBytes(image, options.compression),
+  ];
+
+  for (int i = 0; i < images.length; i++) {
+    final Uint8List bytes = prepared[i];
     document.addPage(
       pw.Page(
-        pageFormat: _pageFormatFor(image, options),
+        pageFormat: _pageFormatFor(images[i], options),
         margin: margin,
         build: (pw.Context context) => pw.Center(
           child: pw.Image(
             pw.MemoryImage(
-              image.bytes,
-              dpi: image.isJpeg ? null : _rasterDpi,
+              bytes,
+              dpi: _isJpeg(bytes) ? null : _rasterDpi,
             ),
             fit: pw.BoxFit.contain,
           ),
@@ -95,6 +145,41 @@ Future<Uint8List> buildPdf(
   }
 
   return document.save();
+}
+
+bool _isJpeg(Uint8List bytes) =>
+    bytes.length > 2 && bytes[0] == 0xFF && bytes[1] == 0xD8;
+
+/// Squeezes a photo for the chosen [level], on the way into the PDF.
+///
+/// `original` returns the untouched bytes, so JPEGs keep their exact quality
+/// and cost nothing. The other levels decode, shrink the longest side and
+/// re-encode as JPEG, which is also what strips any leftover metadata.
+Future<Uint8List> _prepareBytes(
+  SelectedImage image,
+  CompressionLevel level,
+) async {
+  final int maxSide = level.maxSidePixels;
+  if (maxSide == 0) {
+    return image.bytes;
+  }
+
+  final img.Image? decoded = img.decodeImage(image.bytes);
+  if (decoded == null) {
+    return image.bytes;
+  }
+
+  final int longest = math.max(decoded.width, decoded.height);
+  final img.Image scaled = longest <= maxSide
+      ? decoded
+      : img.copyResize(
+          decoded,
+          width: math.max(1, (decoded.width * maxSide / longest).round()),
+          height: math.max(1, (decoded.height * maxSide / longest).round()),
+          interpolation: img.Interpolation.average,
+        );
+
+  return img.encodeJpg(scaled, quality: level.jpegQuality);
 }
 
 PdfPageFormat _pageFormatFor(SelectedImage image, PdfOptions options) {

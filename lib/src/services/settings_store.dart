@@ -10,11 +10,13 @@ class PdfSettings {
     required this.pageSize,
     required this.marginMm,
     this.orientation = PageOrientation.auto,
+    this.compression = CompressionLevel.original,
   });
 
   final PageSizeMode pageSize;
   final double marginMm;
   final PageOrientation orientation;
+  final CompressionLevel compression;
 }
 
 class SettingsStore {
@@ -25,6 +27,7 @@ class SettingsStore {
   static const String _pageSizeKey = 'pageSize';
   static const String _marginKey = 'marginMm';
   static const String _orientationKey = 'pageOrientation';
+  static const String _compressionKey = 'compression';
   static const String _saveFolderKey = 'saveFolder';
   static const String _photoSourceKey = 'photoSource';
   static const String _askSaveKey = 'askWhereToSave';
@@ -36,7 +39,11 @@ class SettingsStore {
       final String? name = prefs.getString(_pageSizeKey);
       final double? margin = prefs.getDouble(_marginKey);
       final String? orientationName = prefs.getString(_orientationKey);
-      if (name == null && margin == null && orientationName == null) {
+      final String? compressionName = prefs.getString(_compressionKey);
+      if (name == null &&
+          margin == null &&
+          orientationName == null &&
+          compressionName == null) {
         return null;
       }
 
@@ -48,10 +55,15 @@ class SettingsStore {
         (PageOrientation value) => value.name == orientationName,
         orElse: () => PageOrientation.auto,
       );
+      final CompressionLevel compression = CompressionLevel.values.firstWhere(
+        (CompressionLevel value) => value.name == compressionName,
+        orElse: () => CompressionLevel.original,
+      );
       return PdfSettings(
         pageSize: pageSize,
         marginMm: (margin ?? 10).clamp(0, 30).toDouble(),
         orientation: orientation,
+        compression: compression,
       );
     } on Exception {
       // Storage trouble must never block the app.
@@ -65,6 +77,7 @@ class SettingsStore {
       await prefs.setString(_pageSizeKey, settings.pageSize.name);
       await prefs.setDouble(_marginKey, settings.marginMm);
       await prefs.setString(_orientationKey, settings.orientation.name);
+      await prefs.setString(_compressionKey, settings.compression.name);
     } on Exception {
       // Best effort: the current session keeps working without it.
     }
