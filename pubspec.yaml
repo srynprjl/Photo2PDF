@@ -43,6 +43,7 @@ dependencies:
   shared_preferences: ^2.5.6
   crypto: ^3.0.8
   pdfrx: ^3.1.0
+  desktop_drop: ^0.8.0
 
 dev_dependencies:
   flutter_test:

@@ -147,7 +147,9 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Choose where PDFs go in a Settings screen (`Downloads/Photo2PDF` by
       default, any folder on desktop, "ask each time" for a system dialog).
 - [x] Gallery by default, with a Gallery / Files switch in Settings.
-- [ ] Desktop drag & drop of files onto the window (`desktop_drop`).
+- [x] Desktop drag & drop of photos onto the window (`desktop_drop`): a
+      highlight covers the window while a file hovers, dropped paths go through
+      the same checks as picked ones, and only the visible tab takes drops.
 
 ### M2 — Release readiness
 
@@ -191,7 +193,7 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 45 passing |
+| Unit tests | `flutter test` | 48 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
 | Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF` |

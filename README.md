@@ -8,8 +8,13 @@ nothing is uploaded anywhere.
 
 ## Two modes
 
-**To PDF** — pick photos from the gallery or the file browser, drag them into
-the order you want, and get a single PDF.
+**To PDF** — pick photos from the gallery or the file browser (or drop them
+straight onto the desktop window), drag them into the order you want, and get a
+single PDF.
+
+On Linux and Windows the whole window becomes a drop target while a file is
+held over it, and unsupported files are named back to you instead of silently
+vanishing.
 
 - Any format the system can decode: JPEG, PNG, WebP, BMP, HEIC, TIFF, GIF.
 - Page size **A4**, **Letter**, or **Fit image** (the page takes the photo's own
@@ -64,7 +69,7 @@ Checks:
 
 ```bash
 flutter analyze                 # no issues
-flutter test                    # 45 tests
+flutter test                    # 48 tests
 ```
 
 ## Project layout
@@ -105,8 +110,9 @@ rendered into a BGRA bitmap at the requested DPI, then encoded as JPEG.
 - No page range selection: every page is converted.
 - **HEIC and AVIF on the desktop build** cannot be decoded, because Skia has no
   codec for them. On Android the system decodes them normally.
-- Drag-to-reorder photos and the desktop file dialogs need a real pointer and a
-  display; they are not covered by automated checks.
+- Drag-to-reorder photos, the desktop file dialogs and the drag & drop gesture
+  itself need a real pointer and a display; the drop intake is unit-tested,
+  but the drag is not simulated in CI.
 - iOS and Windows are untested.
 
 ## Privacy

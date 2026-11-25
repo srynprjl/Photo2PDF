@@ -1,5 +1,7 @@
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
+import 'package:desktop_drop/desktop_drop.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/pdf_builder.dart';
@@ -15,7 +17,11 @@ import '../widgets/output_panel.dart';
 import 'settings_screen.dart';
 
 class ConverterScreen extends StatefulWidget {
-  const ConverterScreen({super.key});
+  const ConverterScreen({this.active = true, super.key});
+
+  /// False while the other tab is showing: a desktop drop target keeps
+  /// receiving files even when it is out of sight.
+  final bool active;
 
   @override
   State<ConverterScreen> createState() => _ConverterScreenState();
@@ -31,6 +37,15 @@ class _ConverterScreenState extends State<ConverterScreen> {
   PhotoSource _photoSource = PhotoSource.gallery;
   SaveLocation _saveLocation = const SaveLocation();
   bool _busy = false;
+
+  /// A file is hovering over the window, on desktop.
+  bool _dragging = false;
+
+  /// The settings screen sits on top, so drops there are not ours.
+  bool _settingsOpen = false;
+
+  static final bool _isDesktop =
+      Platform.isLinux || Platform.isWindows || Platform.isMacOS;
 
   /// Never persisted: a PDF password should not sit in the app's preferences.
   String? _password;
@@ -66,11 +81,18 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Future<void> _openSettings() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (BuildContext context) => const SettingsScreen(),
-      ),
-    );
+    setState(() => _settingsOpen = true);
+    try {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (BuildContext context) => const SettingsScreen(),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _settingsOpen = false);
+      }
+    }
     if (!mounted) return;
     final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
     final PhotoSource source = await SettingsStore.instance.loadPhotoSource();
@@ -135,7 +157,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final Widget page = Scaffold(
       appBar: AppBar(
         title: const Text('Photo2PDF'),
         actions: <Widget>[
@@ -209,6 +231,33 @@ class _ConverterScreenState extends State<ConverterScreen> {
         ),
       ),
     );
+
+    if (!_isDesktop) {
+      return page;
+    }
+
+    return DropTarget(
+      enable: widget.active && !_busy && !_settingsOpen,
+      onDragEntered: (DropEventDetails details) {
+        if (!_busy) {
+          setState(() => _dragging = true);
+        }
+      },
+      onDragExited: (DropEventDetails details) =>
+          setState(() => _dragging = false),
+      onDragDone: (DropDoneDetails details) {
+        setState(() => _dragging = false);
+        _addDropped(
+          <String>[for (final DropItem file in details.files) file.path],
+        );
+      },
+      child: Stack(
+        children: <Widget>[
+          page,
+          if (_dragging) const Positioned.fill(child: _DropHint()),
+        ],
+      ),
+    );
   }
 
   Widget _buildImageArea(BuildContext context) {
@@ -271,22 +320,37 @@ class _ConverterScreenState extends State<ConverterScreen> {
     try {
       final PickedImages? picked =
           await ImagePickerService.instance.pick(source: _photoSource);
-      if (picked == null || !mounted) return;
-
-      setState(() => _images.addAll(picked.images));
-
-      if (picked.rejected.isNotEmpty) {
-        final String names = picked.rejected.take(2).join(', ');
-        final String suffix = picked.rejected.length > 2 ? '…' : '';
-        _notify(
-          'Skipped ${picked.rejected.length} unsupported file(s): $names$suffix',
-          isError: true,
-        );
-      } else if (picked.images.isNotEmpty) {
-        _notify('Added ${picked.images.length} photo(s)');
-      }
+      _ingest(picked);
     } catch (error) {
       _notify('Could not open the images: $error', isError: true);
+    }
+  }
+
+  /// Desktop only: photos dragged from the file manager onto the window.
+  Future<void> _addDropped(List<String> paths) async {
+    if (_busy || paths.isEmpty) return;
+    try {
+      _ingest(await ImagePickerService.instance.addPaths(paths));
+    } catch (error) {
+      _notify('Could not read the dropped files: $error', isError: true);
+    }
+  }
+
+  /// Adds whatever came back from a picker or a drop, and says what happened.
+  void _ingest(PickedImages? picked) {
+    if (picked == null || !mounted) return;
+
+    setState(() => _images.addAll(picked.images));
+
+    if (picked.rejected.isNotEmpty) {
+      final String names = picked.rejected.take(2).join(', ');
+      final String suffix = picked.rejected.length > 2 ? '…' : '';
+      _notify(
+        'Skipped ${picked.rejected.length} unsupported file(s): $names$suffix',
+        isError: true,
+      );
+    } else if (picked.images.isNotEmpty) {
+      _notify('Added ${picked.images.length} photo(s)');
     }
   }
 
@@ -421,5 +485,39 @@ class _ConverterScreenState extends State<ConverterScreen> {
     if (mounted) {
       showNotice(context, message, isError: isError);
     }
+  }
+}
+
+/// Covers the window while a file is held over it, so the drop has a target.
+class _DropHint extends StatelessWidget {
+  const _DropHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    return IgnorePointer(
+      child: ColoredBox(
+        color: scheme.primaryContainer.withValues(alpha: 0.7),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.add_photo_alternate_outlined,
+                size: 48,
+                color: scheme.onPrimaryContainer,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Drop the photos here',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: scheme.onPrimaryContainer,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

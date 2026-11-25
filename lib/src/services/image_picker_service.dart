@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -69,40 +70,42 @@ class ImagePickerService {
     final List<String> rejected = <String>[];
 
     for (final PlatformFile file in files) {
-      Uint8List? bytes = await _readBytes(file);
-      // EXIF rotation lives in metadata, which PDF viewers ignore.
-      if (bytes != null) {
-        bytes = bakeJpegOrientation(bytes);
-      }
-      PhotoInfo? info = bytes == null ? null : readPhotoInfo(bytes);
-
-      // HEIC/AVIF and other container formats only the engine understands:
-      // transcode once here so the PDF writer gets pixels it can embed.
-      if (bytes != null && info == null) {
-        final Uint8List? converted = await decodeWithPlatformCodec(bytes);
-        if (converted != null) {
-          final PhotoInfo? convertedInfo = readPhotoInfo(converted);
-          if (convertedInfo != null) {
-            bytes = converted;
-            info = convertedInfo;
-          }
-        }
-      }
-
-      if (bytes == null || info == null) {
-        rejected.add(file.name);
-        continue;
-      }
-
-      images.add(
-        SelectedImage(
-          id: _nextId++,
-          name: file.name,
-          bytes: bytes,
-          width: info.width,
-          height: info.height,
-        ),
+      final SelectedImage? image = await _toSelected(
+        await _readBytes(file),
+        file.name,
       );
+      if (image == null) {
+        rejected.add(file.name);
+      } else {
+        images.add(image);
+      }
+    }
+
+    return PickedImages(images: images, rejected: rejected);
+  }
+
+  /// Photos dropped onto the desktop window, which arrive as plain paths.
+  ///
+  /// They go through the same checks as picked files, so an unsupported file is
+  /// reported rather than half-added.
+  Future<PickedImages> addPaths(List<String> paths) async {
+    final List<SelectedImage> images = <SelectedImage>[];
+    final List<String> rejected = <String>[];
+
+    for (final String path in paths) {
+      final String name = path.split(Platform.pathSeparator).last;
+      Uint8List? bytes;
+      try {
+        bytes = await File(path).readAsBytes();
+      } on Exception {
+        bytes = null;
+      }
+      final SelectedImage? image = await _toSelected(bytes, name);
+      if (image == null) {
+        rejected.add(name);
+      } else {
+        images.add(image);
+      }
     }
 
     return PickedImages(images: images, rejected: rejected);
@@ -114,5 +117,39 @@ class ImagePickerService {
     } on Exception {
       return null;
     }
+  }
+
+  /// One file's journey into the list: right way up, decodable, measured.
+  Future<SelectedImage?> _toSelected(Uint8List? raw, String name) async {
+    if (raw == null) {
+      return null;
+    }
+
+    // EXIF rotation lives in metadata, which PDF viewers ignore.
+    Uint8List bytes = bakeJpegOrientation(raw);
+    PhotoInfo? info = readPhotoInfo(bytes);
+
+    // HEIC/AVIF and other container formats only the engine understands:
+    // transcode once here so the PDF writer gets pixels it can embed.
+    if (info == null) {
+      final Uint8List? converted = await decodeWithPlatformCodec(bytes);
+      if (converted == null) {
+        return null;
+      }
+      final PhotoInfo? convertedInfo = readPhotoInfo(converted);
+      if (convertedInfo == null) {
+        return null;
+      }
+      bytes = converted;
+      info = convertedInfo;
+    }
+
+    return SelectedImage(
+      id: _nextId++,
+      name: name,
+      bytes: bytes,
+      width: info.width,
+      height: info.height,
+    );
   }
 }

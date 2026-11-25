@@ -19,7 +19,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: IndexedStack(
         index: _index,
-        children: const <Widget>[ConverterScreen(), PdfToImagesScreen()],
+        children: <Widget>[
+          // Only the visible tab may take desktop drops.
+          ConverterScreen(active: _index == 0),
+          const PdfToImagesScreen(),
+        ],
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
