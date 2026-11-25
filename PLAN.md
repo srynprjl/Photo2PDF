@@ -13,6 +13,7 @@ with a Material 3 interface.
 | Pick photos in any format we can decode | OCR / text extraction |
 | Reorder pages, remove one, clear all | Editing or cropping photos |
 | Page size: A4, Letter, or match the photo | Merging existing PDFs |
+| Page orientation: auto, vertical, horizontal | Printing, sharing |
 | Adjustable white margin | Cloud upload / accounts |
 | Save the PDF to disk | Printing, in-app sharing |
 
@@ -28,8 +29,9 @@ Everything runs on the device. No network access, no telemetry, no uploads.
 | TGA, ICO, PSD, PNM, EXR, PVR | Decoded by the `image` package (reachable when a file arrives, e.g. via a future drag-and-drop) |
 
 Anything undecodable is skipped with a message, never silently dropped or
-written as a broken page. Page orientation follows the photo: a landscape photo
-gets a landscape sheet.
+written as a broken page. Page orientation is a choice: `Auto` turns each sheet
+to follow its photo (a landscape photo gets a landscape sheet), while `Vertical`
+and `Horizontal` keep every page the same way up.
 
 ## 3. Why Flutter
 
@@ -55,7 +57,7 @@ Core (pure Dart, no plugins)       lib/src/core
 - **Core** — `photo_info.dart` sniffs the format and reads width/height (JPEG
   from its SOFn header, everything else through `image`); `platform_decoder.dart`
   is the `dart:ui` fallback for HEIC/AVIF; `pdf_builder.dart` lays one photo per
-  page on A4 / Letter / photo-sized pages.
+  page on A4 / Letter / photo-sized pages, upright or on its side as chosen.
 - **Services** — `image_picker_service.dart` (file_picker with an image
   extension filter, validates and transcodes when needed), `pdf_saver.dart`
   (writes into the chosen folder, `Downloads/Photo2PDF` on Android through
@@ -109,6 +111,7 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Pick photos, validate them, show a thumbnail list
 - [x] Reorder, remove, clear all
 - [x] Page size (A4 / Letter / fit photo) + margin
+- [x] Page orientation (auto / vertical / horizontal)
 - [x] PDF generation, JPEG passthrough, multi-format decode
 - [x] Save to disk per platform, into `Downloads/Photo2PDF` by default
 - [x] Unit tests for format parsing and PDF output (30 tests)
@@ -159,10 +162,10 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 30 passing |
+| Unit tests | `flutter test` | 34 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size survives a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog |
 
 Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.
