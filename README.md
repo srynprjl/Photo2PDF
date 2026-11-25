@@ -32,8 +32,13 @@ vanishing.
 - The output name is suggested from the photos and the time, and is made unique
   (`scan (2).pdf`) rather than overwriting.
 
-**To photos** — choose a PDF, pick a resolution, and every page comes out as a
-JPEG.
+**To photos** — choose a PDF, pick which pages and a resolution, and each page
+comes out as a JPEG.
+
+- **Pages** — leave the field empty for the whole document, or type a range
+  like `1-3`, `2,5` or `1-3,7`. The line under the field says how many pages
+  that is (`Will save 2 of 4 pages.`) before you press anything, and page
+  numbers the document does not have are refused.
 
 - **150 / 200 / 300 DPI** (default 200). 200 DPI gives 2338 × 1653 for an A4
   landscape page; 300 DPI is print quality at roughly twice the size.
@@ -69,7 +74,7 @@ Checks:
 
 ```bash
 flutter analyze                 # no issues
-flutter test                    # 48 tests
+flutter test                    # 53 tests
 ```
 
 ## Project layout
@@ -107,7 +112,6 @@ rendered into a BGRA bitmap at the requested DPI, then encoded as JPEG.
 - **Encrypted PDFs cannot be opened** in the PDF → photos mode yet; they fail
   with a message. PDFium accepts a password provider — the dialog is not wired
   to it.
-- No page range selection: every page is converted.
 - **HEIC and AVIF on the desktop build** cannot be decoded, because Skia has no
   codec for them. On Android the system decodes them normally.
 - Drag-to-reorder photos, the desktop file dialogs and the drag & drop gesture
