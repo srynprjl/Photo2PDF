@@ -37,6 +37,10 @@ vanishing.
 - EXIF orientation is applied, so phone photos are never sideways.
 - The output name is suggested from the photos and the time, and is made unique
   (`scan (2).pdf`) rather than overwriting.
+- The selection is kept on disk after every add, remove and reorder, so it
+  survives a restart, a rotation and Android killing the app for memory. On the
+  next launch a **Continue where you left off?** card offers it back, with the
+  count and size, or **Start fresh** to throw it away.
 
 **To photos** — choose a PDF, pick which pages and a resolution, and each page
 comes out as a JPEG.
@@ -63,6 +67,10 @@ comes out as a JPEG.
 | Android | `Downloads/Photo2PDF` | any folder, or ask every time |
 | Linux desktop | `~/Downloads/Photo2PDF`, falling back to `~/Documents/Photo2PDF` | any folder, or ask every time |
 
+The current selection lives in the app's own support folder, not in your
+gallery: it is cleared when the list is cleared, when you choose Start fresh,
+and it never leaves the device.
+
 Settings — save folder, gallery vs. file browser vs. camera for picking, page
 size, orientation, fit/fill, margin, compression — are remembered between
 launches.
@@ -84,7 +92,7 @@ Checks:
 
 ```bash
 flutter analyze                 # no issues
-flutter test                    # 55 tests
+flutter test                    # 66 tests
 ```
 
 ## Project layout

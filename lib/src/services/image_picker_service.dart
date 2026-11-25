@@ -145,6 +145,20 @@ class ImagePickerService {
     return PickedImages(images: images, rejected: rejected);
   }
 
+  /// A photo coming back from the saved draft, rather than from a picker.
+  ///
+  /// Ids still come from here, so a restored photo and one added afterwards
+  /// can never share a key and confuse the reorderable list.
+  SelectedImage adopt(Uint8List bytes, String name, int width, int height) {
+    return SelectedImage(
+      id: _nextId++,
+      name: name,
+      bytes: bytes,
+      width: width,
+      height: height,
+    );
+  }
+
   /// One file's journey into the list: right way up, decodable, measured.
   Future<SelectedImage?> _toSelected(Uint8List? raw, String name) async {
     if (raw == null) {

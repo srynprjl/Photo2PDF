@@ -6,10 +6,12 @@ import 'package:material_ui/material_ui.dart';
 
 import '../core/pdf_builder.dart';
 import '../models/selected_image.dart';
+import '../services/draft_store.dart';
 import '../services/image_picker_service.dart';
 import '../services/pdf_saver.dart';
 import '../services/save_location.dart';
 import '../services/settings_store.dart';
+import '../widgets/draft_banner.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/image_card.dart';
 import '../widgets/notices.dart';
@@ -48,6 +50,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
   static final bool _isDesktop =
       Platform.isLinux || Platform.isWindows || Platform.isMacOS;
 
+  /// What the last visit left behind, waiting for a yes or a no.
+  List<SelectedImage>? _draft;
+
   /// Never persisted: a PDF password should not sit in the app's preferences.
   String? _password;
 
@@ -59,6 +64,38 @@ class _ConverterScreenState extends State<ConverterScreen> {
   void initState() {
     super.initState();
     _restoreSettings();
+    _restoreDraft();
+  }
+
+  /// The photo list lives on disk between runs, so a long selection is not
+  /// lost to a restart, a rotation that runs the app out of memory, or a swipe
+  /// away from the app.
+  Future<void> _restoreDraft() async {
+    final List<SelectedImage> saved = await DraftStore.instance.load();
+    if (!mounted || saved.isEmpty) return;
+    setState(() => _draft = saved);
+  }
+
+  /// Mirrors the list to disk after every change; failures are silent by
+  /// design, since the photos in memory are still the truth.
+  void _persist() {
+    DraftStore.instance.save(List<SelectedImage>.of(_images));
+  }
+
+  void _continueDraft() {
+    final List<SelectedImage>? draft = _draft;
+    if (draft == null) return;
+    setState(() {
+      _images.addAll(draft);
+      _draft = null;
+    });
+    _persist();
+    _notify('Brought back ${draft.length} photo(s)');
+  }
+
+  void _discardDraft() {
+    setState(() => _draft = null);
+    DraftStore.instance.clear();
   }
 
   @override
@@ -263,10 +300,32 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Widget _buildImageArea(BuildContext context) {
-    if (_images.isEmpty) {
-      return EmptyState(onAddImages: _busy ? null : _addImages);
+    final Widget area = _images.isEmpty
+        ? EmptyState(onAddImages: _busy ? null : _addImages)
+        : _buildPhotoList(context);
+
+    final List<SelectedImage>? draft = _draft;
+    if (draft == null) {
+      return area;
     }
 
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 8, 4, 4),
+          child: DraftBanner(
+            photos: draft,
+            onContinue: _continueDraft,
+            onDiscard: _discardDraft,
+          ),
+        ),
+        Expanded(child: area),
+      ],
+    );
+  }
+
+  Widget _buildPhotoList(BuildContext context) {
     final ThemeData theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -353,6 +412,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     if (picked == null || !mounted) return;
 
     setState(() => _images.addAll(picked.images));
+    _persist();
 
     if (picked.rejected.isNotEmpty) {
       final String names = picked.rejected.take(2).join(', ');
@@ -410,6 +470,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     setState(
       () => _images.removeWhere((SelectedImage image) => image.id == id),
     );
+    _persist();
   }
 
   /// Beyond a photo or two, wiping the list asks first: the undo button only
@@ -451,6 +512,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     if (_images.isEmpty || _busy) return;
     final List<SelectedImage> removed = List<SelectedImage>.of(_images);
     setState(_images.clear);
+    _persist();
 
     final ColorScheme scheme = Theme.of(context).colorScheme;
     ScaffoldMessenger.of(context)
@@ -466,6 +528,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             onPressed: () {
               if (!mounted) return;
               setState(() => _images.insertAll(0, removed));
+              _persist();
             },
           ),
         ),
@@ -478,6 +541,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       final SelectedImage image = _images.removeAt(oldIndex);
       _images.insert(newIndex, image);
     });
+    _persist();
   }
 
   String _suggestedFileName() {
