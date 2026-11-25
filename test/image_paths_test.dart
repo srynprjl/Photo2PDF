@@ -2,7 +2,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:photo2pdf/src/models/selected_image.dart';
 import 'package:photo2pdf/src/services/image_picker_service.dart';
 
 Uint8List _fixture(String name) =>
