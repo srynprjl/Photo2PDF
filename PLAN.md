@@ -123,7 +123,8 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Reorder, remove, clear all
 - [x] Page size (A4 / Letter / fit photo) + margin
 - [x] PDF → photos mode (PDFium through `pdfrx`), JPEG per page
-- [x] Clear all photos from the list header or the app bar, one tap of undo
+- [x] Clear all photos from the list header or the app bar: a confirmation
+      when three or more photos would go, one tap of undo either way
 - [x] Page orientation (auto / vertical / horizontal)
 - [x] On-the-fly compression (original / balanced / small)
 - [x] Password-protected PDFs

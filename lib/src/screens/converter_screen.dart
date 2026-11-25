@@ -531,8 +531,42 @@ class _ConverterScreenState extends State<ConverterScreen> {
     setState(() => _images.removeWhere((SelectedImage image) => image.id == id));
   }
 
-  /// Clears the whole list at once, with one tap of undo in case it was a slip.
-  void _clearAll() {
+  /// Beyond a photo or two, wiping the list asks first: the undo button only
+  /// lives for a few seconds, so a mis-tap after that is a lost selection.
+  static const int _confirmClearFrom = 3;
+
+  Future<void> _clearAll() async {
+    if (_images.isEmpty || _busy) return;
+
+    if (_images.length >= _confirmClearFrom) {
+      final int count = _images.length;
+      final bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (BuildContext context) => AlertDialog(
+          title: Text('Clear $count photos?'),
+          content: const Text(
+            'Every photo leaves the list. You can still undo right after.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Keep them'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Clear all'),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
+
+    _clearNow();
+  }
+
+  /// Empties the list and offers one tap of undo in case it was a slip.
+  void _clearNow() {
     if (_images.isEmpty || _busy) return;
     final List<SelectedImage> removed = List<SelectedImage>.of(_images);
     setState(_images.clear);
