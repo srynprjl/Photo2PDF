@@ -191,10 +191,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: ConstrainedBox(
-                    // The page size, orientation and save rows need room, or
-                    // "Add photos" scrolls out of sight on a phone.
+                    // The page size, orientation, compression and password
+                    // rows need room, or "Add photos" scrolls out of sight on a
+                    // phone once the navigation bar is accounted for.
                     constraints: BoxConstraints(
-                      maxHeight: constraints.maxHeight * 0.72,
+                      maxHeight: constraints.maxHeight * 0.8,
                     ),
                     child: SingleChildScrollView(
                       child: _buildOptionsPanel(context),
