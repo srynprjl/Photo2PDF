@@ -33,14 +33,14 @@ class EmptyState extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text(
-                'No images yet',
+                'No photos yet',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.headlineSmall,
               ),
               const SizedBox(height: 8),
               Text(
-                'Add JPG photos and each one becomes its own PDF page, '
-                'in the order you choose.',
+                'Add photos and each one becomes its own PDF page, in the '
+                'order you choose. JPG, PNG, WebP, HEIC and more.',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: scheme.onSurfaceVariant,
@@ -50,7 +50,7 @@ class EmptyState extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onAddImages,
                 icon: const Icon(Icons.add_photo_alternate_outlined),
-                label: const Text('Add JPG images'),
+                label: const Text('Add photos'),
               ),
             ],
           ),

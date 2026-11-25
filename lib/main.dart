@@ -4,16 +4,16 @@ import 'src/screens/converter_screen.dart';
 import 'src/theme.dart';
 
 void main() {
-  runApp(const JpgToPdfApp());
+  runApp(const Photo2PdfApp());
 }
 
-class JpgToPdfApp extends StatelessWidget {
-  const JpgToPdfApp({super.key});
+class Photo2PdfApp extends StatelessWidget {
+  const Photo2PdfApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'JPG to PDF',
+      title: 'Photo2PDF',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(Brightness.light),
       darkTheme: buildAppTheme(Brightness.dark),

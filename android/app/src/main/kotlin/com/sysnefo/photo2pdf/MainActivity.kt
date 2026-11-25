@@ -1,4 +1,4 @@
-package com.sysnefo.jpg_to_pdf
+package com.sysnefo.photo2pdf
 
 import io.flutter.embedding.android.FlutterActivity
 

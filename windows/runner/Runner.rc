@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.sysnefo" "\0"
-            VALUE "FileDescription", "jpg_to_pdf" "\0"
+            VALUE "FileDescription", "Photo2PDF" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "jpg_to_pdf" "\0"
+            VALUE "InternalName", "Photo2PDF" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.sysnefo. All rights reserved." "\0"
-            VALUE "OriginalFilename", "jpg_to_pdf.exe" "\0"
-            VALUE "ProductName", "jpg_to_pdf" "\0"
+            VALUE "OriginalFilename", "photo2pdf.exe" "\0"
+            VALUE "ProductName", "Photo2PDF" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

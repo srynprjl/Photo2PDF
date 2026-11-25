@@ -29,11 +29,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JPG to PDF'),
+        title: const Text('Photo2PDF'),
         actions: <Widget>[
           if (_images.isNotEmpty)
             IconButton(
-              tooltip: 'Remove all images',
+              tooltip: 'Remove all photos',
               onPressed: _busy ? null : () => setState(_images.clear),
               icon: const Icon(Icons.delete_sweep_outlined),
             ),
@@ -70,7 +70,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 360),
+                    constraints: BoxConstraints(
+                      maxHeight: constraints.maxHeight * 0.55,
+                    ),
                     child: SingleChildScrollView(
                       child: _buildOptionsPanel(context),
                     ),
@@ -98,7 +100,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
           child: Row(
             children: <Widget>[
               Text(
-                '${_images.length} image${_images.length == 1 ? '' : 's'} · ${formatBytes(_totalBytes)}',
+                '${_images.length} photo${_images.length == 1 ? '' : 's'} · ${formatBytes(_totalBytes)}',
                 style: theme.textTheme.titleSmall,
               ),
               const Spacer(),
@@ -222,17 +224,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
             OutlinedButton.icon(
               onPressed: _busy ? null : _addImages,
               icon: const Icon(Icons.add_photo_alternate_outlined),
-              label: const Text('Add images'),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _images.isEmpty
-                  ? 'No images selected yet.'
-                  : '${_images.length} page(s) will be created.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
+              label: const Text('Add photos'),
             ),
           ],
         ),
@@ -256,7 +248,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
           isError: true,
         );
       } else if (picked.images.isNotEmpty) {
-        _notify('Added ${picked.images.length} image(s)');
+        _notify('Added ${picked.images.length} photo(s)');
       }
     } catch (error) {
       _notify('Could not open the images: $error', isError: true);
@@ -277,7 +269,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
       final SaveResult result = await PdfSaver.save(bytes, _suggestedFileName());
       if (!mounted) return;
 
-      _notify(result.saved ? 'Saved to ${result.path}' : 'Save cancelled');
+      _notify(
+        result.saved
+            ? 'Saved to ${result.displayPath ?? result.path}'
+            : 'Save cancelled',
+      );
     } catch (error) {
       if (mounted) {
         _notify('Could not create the PDF: $error', isError: true);
@@ -304,7 +300,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   String _suggestedFileName() {
     if (_images.length == 1) {
       final String stem = _images.first.name.replaceFirst(
-        RegExp(r'\.jpe?g$', caseSensitive: false),
+        RegExp(r'\.[^.]+$'),
         '',
       );
       if (stem.isNotEmpty) {
@@ -313,7 +309,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
     }
     final DateTime now = DateTime.now();
     String two(int value) => value.toString().padLeft(2, '0');
-    return 'jpg_to_pdf_${now.year}${two(now.month)}${two(now.day)}_'
+    return 'photo2pdf_${now.year}${two(now.month)}${two(now.day)}_'
         '${two(now.hour)}${two(now.minute)}.pdf';
   }
 
