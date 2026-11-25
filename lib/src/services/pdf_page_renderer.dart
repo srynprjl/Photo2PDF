@@ -18,13 +18,18 @@ class PdfPageRenderer {
   PdfPageRenderer._();
 
   /// How many pages the document has, without rendering anything.
+  ///
+  /// [passwordProvider] is asked for a password when the document is locked,
+  /// and asked again after a wrong one; returning `null` gives up.
   static Future<int> pageCount(
     Uint8List bytes, {
     required String sourceName,
+    PdfPasswordProvider? passwordProvider,
   }) async {
     final PdfDocument document = await PdfDocument.openData(
       bytes,
       sourceName: sourceName,
+      passwordProvider: passwordProvider,
     );
     try {
       return document.pages.length;
@@ -46,10 +51,12 @@ class PdfPageRenderer {
     required String sourceName,
     required int dpi,
     List<int>? pages,
+    PdfPasswordProvider? passwordProvider,
   }) async* {
     final PdfDocument document = await PdfDocument.openData(
       bytes,
       sourceName: sourceName,
+      passwordProvider: passwordProvider,
     );
     try {
       final List<PdfPage> all = document.pages;

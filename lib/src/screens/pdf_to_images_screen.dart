@@ -4,6 +4,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart'
     show FilteringTextInputFormatter, TextInputFormatter;
 import 'package:material_ui/material_ui.dart';
+import 'package:pdfrx/pdfrx.dart' show PdfPasswordException;
 
 import '../core/page_selection.dart';
 import '../models/selected_image.dart';
@@ -29,6 +30,12 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
   int _pageCount = 0;
   int _dpi = 200;
 
+  /// The password this document opens with, once known; never written to disk.
+  String? _pdfPassword;
+
+  /// How many passwords have been asked for, so a second try can say so.
+  int _passwordAttempts = 0;
+
   /// Pages rendered so far in the current run, out of [_total].
   int _done = 0;
   int _total = 0;
@@ -37,6 +44,10 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
 
   /// What the person typed in the Pages field; empty means every page.
   final TextEditingController _pagesController = TextEditingController();
+
+  /// Shared by the password dialogs and kept for the screen's lifetime: a
+  /// controller disposed as the dialog closes still has listeners attached.
+  final TextEditingController _passwordController = TextEditingController();
 
   @override
   void initState() {
@@ -47,6 +58,7 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
   @override
   void dispose() {
     _pagesController.dispose();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -73,11 +85,34 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
       final Uint8List bytes = await file.readAsBytes();
       if (!mounted) return;
 
-      final int pages = await PdfPageRenderer.pageCount(
-        bytes,
-        sourceName: file.name,
-      );
+      _pdfPassword = null;
+      _passwordAttempts = 0;
+      String? accepted;
+
+      // PDFium keeps asking until the password works, so this is asked again
+      // after a wrong one; `null` (cancelled) makes the open give up.
+      Future<String?> passwordProvider() async {
+        final String? entered = await _askPassword();
+        if (entered != null) {
+          accepted = entered;
+        }
+        return entered;
+      }
+
+      final int pages;
+      try {
+        pages = await PdfPageRenderer.pageCount(
+          bytes,
+          sourceName: file.name,
+          passwordProvider: passwordProvider,
+        );
+      } on PdfPasswordException {
+        _notify('That PDF is locked and needs its password to open.');
+        return;
+      }
       if (!mounted) return;
+
+      _pdfPassword = accepted;
       setState(() {
         _name = file.name;
         _bytes = bytes;
@@ -90,6 +125,52 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
     } catch (error) {
       _notify('Could not read that PDF: $error', isError: true);
     }
+  }
+
+  /// Asks for the password of a locked PDF.
+  ///
+  /// Returns `null` when the person gives up, which stops the whole attempt.
+  Future<String?> _askPassword() async {
+    final int attempt = _passwordAttempts++;
+    _passwordController.clear();
+    final String? entered = await showDialog<String>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) => AlertDialog(
+        title: Text(attempt == 0 ? 'This PDF is locked' : 'Wrong password'),
+        content: TextField(
+          controller: _passwordController,
+          autofocus: true,
+          obscureText: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: const InputDecoration(
+            labelText: 'Password',
+            helperText: 'Asked once to open the document. Never saved.',
+          ),
+          onSubmitted: (String value) {
+            if (value.isNotEmpty) {
+              Navigator.of(context).pop(value);
+            }
+          },
+        ),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              if (_passwordController.text.isNotEmpty) {
+                Navigator.of(context).pop(_passwordController.text);
+              }
+            },
+            child: const Text('Open'),
+          ),
+        ],
+      ),
+    );
+    return entered;
   }
 
   Future<void> _convert() async {
@@ -118,6 +199,7 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
         sourceName: name,
         dpi: _dpi,
         pages: selection.pages,
+        passwordProvider: () => _pdfPassword,
       )) {
         location = await PageSaver.save(
           page.bytes,
@@ -335,7 +417,8 @@ class _PdfToImagesScreenState extends State<PdfToImagesScreen> {
             title: Text(_name ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
             subtitle: Text(
               '$_pageCount page${_pageCount == 1 ? '' : 's'} · '
-              '${formatBytes(_bytes?.length ?? 0)}',
+              '${formatBytes(_bytes?.length ?? 0)}'
+              '${_pdfPassword == null ? '' : ' · password protected'}',
             ),
           ),
           Align(

@@ -35,6 +35,9 @@ vanishing.
 **To photos** — choose a PDF, pick which pages and a resolution, and each page
 comes out as a JPEG.
 
+- **Locked PDFs** — a password-protected document asks for the password
+  (again, if it is wrong) and then converts like any other. The password is
+  kept in memory for that document only.
 - **Pages** — leave the field empty for the whole document, or type a range
   like `1-3`, `2,5` or `1-3,7`. The line under the field says how many pages
   that is (`Will save 2 of 4 pages.`) before you press anything, and page
@@ -109,9 +112,6 @@ rendered into a BGRA bitmap at the requested DPI, then encoded as JPEG.
 
 ## Known limitations
 
-- **Encrypted PDFs cannot be opened** in the PDF → photos mode yet; they fail
-  with a message. PDFium accepts a password provider — the dialog is not wired
-  to it.
 - **HEIC and AVIF on the desktop build** cannot be decoded, because Skia has no
   codec for them. On Android the system decodes them normally.
 - Drag-to-reorder photos, the desktop file dialogs and the drag & drop gesture
