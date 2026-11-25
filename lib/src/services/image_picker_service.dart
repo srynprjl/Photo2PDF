@@ -7,6 +7,16 @@ import '../core/photo_normalizer.dart';
 import '../core/platform_decoder.dart';
 import '../models/selected_image.dart';
 
+/// Where the picker looks for photos.
+enum PhotoSource { gallery, files }
+
+extension PhotoSourceLabels on PhotoSource {
+  String get label => switch (this) {
+    PhotoSource.gallery => 'Gallery',
+    PhotoSource.files => 'Files',
+  };
+}
+
 /// Result of one picker session.
 class PickedImages {
   const PickedImages({required this.images, required this.rejected});
@@ -24,24 +34,31 @@ class ImagePickerService {
 
   int _nextId = 0;
 
-  /// Opens the platform file picker. Returns `null` when the user cancels.
-  Future<PickedImages?> pick() async {
+  /// Opens the gallery or the file browser. Returns `null` when the user
+  /// cancels.
+  ///
+  /// The gallery is the default because it is the shortest way to a photo on a
+  /// phone; the file browser stays one setting away for downloads and for the
+  /// formats a gallery may hide.
+  Future<PickedImages?> pick({PhotoSource source = PhotoSource.gallery}) async {
     final List<PlatformFile> files = await FilePicker.pickFiles(
       dialogTitle: 'Choose photos',
-      type: FileType.custom,
-      allowedExtensions: const <String>[
-        'jpg',
-        'jpeg',
-        'png',
-        'webp',
-        'heic',
-        'heif',
-        'avif',
-        'bmp',
-        'gif',
-        'tif',
-        'tiff',
-      ],
+      type: source == PhotoSource.gallery ? FileType.image : FileType.custom,
+      allowedExtensions: source == PhotoSource.gallery
+          ? null
+          : const <String>[
+              'jpg',
+              'jpeg',
+              'png',
+              'webp',
+              'heic',
+              'heif',
+              'avif',
+              'bmp',
+              'gif',
+              'tif',
+              'tiff',
+            ],
     );
 
     if (files.isEmpty) {

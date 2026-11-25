@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:file_selector/file_selector.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../services/image_picker_service.dart';
 import '../services/save_location.dart';
 import '../services/settings_store.dart';
 
@@ -16,6 +17,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   SaveLocation _location = const SaveLocation();
+  PhotoSource _photoSource = PhotoSource.gallery;
   bool _ready = false;
 
   bool get _isPhone => Platform.isAndroid || Platform.isIOS;
@@ -28,9 +30,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _load() async {
     final SaveLocation saved = await SettingsStore.instance.loadSaveLocation();
+    final PhotoSource source = await SettingsStore.instance.loadPhotoSource();
     if (!mounted) return;
     setState(() {
       _location = saved;
+      _photoSource = source;
       _ready = true;
     });
   }
@@ -38,6 +42,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _apply(SaveLocation next) async {
     setState(() => _location = next);
     await SettingsStore.instance.saveSaveLocation(next);
+  }
+
+  Future<void> _applyPhotoSource(PhotoSource source) async {
+    setState(() => _photoSource = source);
+    await SettingsStore.instance.savePhotoSource(source);
   }
 
   Future<void> _pickFolder() async {
@@ -69,6 +78,47 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.all(16),
               children: <Widget>[
+                Text('Photos', style: theme.textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        SegmentedButton<PhotoSource>(
+                          segments: const <ButtonSegment<PhotoSource>>[
+                            ButtonSegment<PhotoSource>(
+                              value: PhotoSource.gallery,
+                              icon: Icon(Icons.photo_library_outlined),
+                              label: Text('Gallery'),
+                            ),
+                            ButtonSegment<PhotoSource>(
+                              value: PhotoSource.files,
+                              icon: Icon(Icons.folder_open_outlined),
+                              label: Text('Files'),
+                            ),
+                          ],
+                          selected: <PhotoSource>{_photoSource},
+                          onSelectionChanged: (Set<PhotoSource> selection) =>
+                              _applyPhotoSource(selection.first),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          _photoSource == PhotoSource.gallery
+                              ? 'Add photos opens the gallery, the fastest way '
+                                  'in on a phone.'
+                              : 'Add photos opens the file browser, for '
+                                  'downloads and unusual formats.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
                 Text('Save location', style: theme.textTheme.titleMedium),
                 const SizedBox(height: 8),
                 Card(

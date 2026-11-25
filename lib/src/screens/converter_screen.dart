@@ -24,6 +24,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   PageSizeMode _pageSize = PageSizeMode.a4;
   double _marginMm = 10;
   PageOrientation _orientation = PageOrientation.auto;
+  PhotoSource _photoSource = PhotoSource.gallery;
   SaveLocation _saveLocation = const SaveLocation();
   bool _busy = false;
 
@@ -36,8 +37,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Future<void> _restoreSettings() async {
     final PdfSettings? saved = await SettingsStore.instance.load();
     final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
+    final PhotoSource source = await SettingsStore.instance.loadPhotoSource();
     if (!mounted) return;
     setState(() {
+      _photoSource = source;
       if (saved != null) {
         _pageSize = saved.pageSize;
         _marginMm = saved.marginMm;
@@ -53,8 +56,12 @@ class _ConverterScreenState extends State<ConverterScreen> {
     );
     if (!mounted) return;
     final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
+    final PhotoSource source = await SettingsStore.instance.loadPhotoSource();
     if (!mounted) return;
-    setState(() => _saveLocation = location);
+    setState(() {
+      _saveLocation = location;
+      _photoSource = source;
+    });
   }
 
   void _selectPageSize(PageSizeMode mode) {
@@ -352,7 +359,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Future<void> _addImages() async {
     if (_busy) return;
     try {
-      final PickedImages? picked = await ImagePickerService.instance.pick();
+      final PickedImages? picked =
+          await ImagePickerService.instance.pick(source: _photoSource);
       if (picked == null || !mounted) return;
 
       setState(() => _images.addAll(picked.images));

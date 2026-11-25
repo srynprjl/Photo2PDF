@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:photo2pdf/src/core/pdf_builder.dart';
+import 'package:photo2pdf/src/services/image_picker_service.dart';
 import 'package:photo2pdf/src/services/save_location.dart';
 import 'package:photo2pdf/src/services/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,6 +53,16 @@ void main() {
     final PdfSettings? loaded = await SettingsStore.instance.load();
 
     expect(loaded!.orientation, PageOrientation.vertical);
+  });
+
+  test('starts with the gallery as the photo source', () async {
+    expect(await SettingsStore.instance.loadPhotoSource(), PhotoSource.gallery);
+  });
+
+  test('remembers the file browser as the photo source', () async {
+    await SettingsStore.instance.savePhotoSource(PhotoSource.files);
+
+    expect(await SettingsStore.instance.loadPhotoSource(), PhotoSource.files);
   });
 
   test('starts with the default save location', () async {

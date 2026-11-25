@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/pdf_builder.dart';
+import 'image_picker_service.dart';
 import 'save_location.dart';
 
 /// The parts of the output setup worth remembering between runs.
@@ -25,6 +26,7 @@ class SettingsStore {
   static const String _marginKey = 'marginMm';
   static const String _orientationKey = 'pageOrientation';
   static const String _saveFolderKey = 'saveFolder';
+  static const String _photoSourceKey = 'photoSource';
   static const String _askSaveKey = 'askWhereToSave';
 
   /// Returns the saved setup, or `null` on a first run.
@@ -65,6 +67,29 @@ class SettingsStore {
       await prefs.setString(_orientationKey, settings.orientation.name);
     } on Exception {
       // Best effort: the current session keeps working without it.
+    }
+  }
+
+  /// Whether `Add photos` opens the gallery or the file browser.
+  Future<PhotoSource> loadPhotoSource() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? name = prefs.getString(_photoSourceKey);
+      return PhotoSource.values.firstWhere(
+        (PhotoSource source) => source.name == name,
+        orElse: () => PhotoSource.gallery,
+      );
+    } on Exception {
+      return PhotoSource.gallery;
+    }
+  }
+
+  Future<void> savePhotoSource(PhotoSource source) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_photoSourceKey, source.name);
+    } on Exception {
+      // Best effort: the gallery stays the fallback for this session.
     }
   }
 
