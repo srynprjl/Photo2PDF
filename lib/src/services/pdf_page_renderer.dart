@@ -1,7 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:image/image.dart' as img;
 import 'package:pdfrx/pdfrx.dart';
+
+import 'page_encoder.dart';
 
 /// One page of a PDF, already turned into pixels.
 class PdfPageImage {
@@ -41,6 +42,10 @@ class PdfPageRenderer {
   /// Renders the chosen pages as JPEGs, one page at a time so a long PDF never
   /// holds all the pixels in memory at once.
   ///
+  /// PDFium draws on pdfrx's own worker isolate; the JPEG encode then runs on a
+  /// second one ([PageEncoder]), so a page's worth of work never sits on the UI
+  /// isolate and the progress bar keeps moving through a long document.
+  ///
   /// [dpi] is the resolution the page is drawn at: 150 is a screen-sized sheet,
   /// 300 is print quality and roughly four times the pixels.
   ///
@@ -76,15 +81,11 @@ class PdfPageRenderer {
           continue;
         }
 
-        // PDFium hands back BGRA, which is what the encoder expects to be told.
-        final img.Image decoded = img.Image.fromBytes(
+        final Uint8List jpeg = await PageEncoder.encode(
+          raster.pixels,
           width: raster.width,
           height: raster.height,
-          bytes: raster.pixels.buffer,
-          numChannels: 4,
-          order: img.ChannelOrder.bgra,
         );
-        final Uint8List jpeg = img.encodeJpg(decoded, quality: 85);
         raster.dispose();
 
         yield PdfPageImage(number: number, bytes: jpeg);

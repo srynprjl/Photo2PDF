@@ -58,9 +58,10 @@ comes out as a JPEG.
 
 - **150 / 200 / 300 DPI** (default 200). 200 DPI gives 2338 × 1653 for an A4
   landscape page; 300 DPI is print quality at roughly twice the size.
-- Pages are rendered one at a time and each page is written before the next one
-  starts, so a long document never holds all its pixels in memory. A progress
-  bar shows `Page 2 of 4`.
+- Pages are rendered and encoded one at a time on a background isolate, and
+  each page is written before the next one starts, so a long document never
+  holds all its pixels in memory and never stops the screen repainting — the
+  bar and `Page 2 of 4` keep moving instead of freezing.
 - Saved beside your PDFs as `holiday-page-1.jpg`, `holiday-page-2.jpg`, …
 
 ## Where files go
@@ -95,7 +96,7 @@ Checks:
 
 ```bash
 flutter analyze                 # no issues
-flutter test                    # 75 tests
+flutter test                    # 78 tests
 ```
 
 ## Project layout
@@ -132,7 +133,10 @@ directly on the PDF objects because the `pdf` package only exposes an abstract
 encryption hook — hence the one `ignore_for_file: implementation_imports`.
 
 The other direction goes through PDFium (the `pdfrx` package): the page is
-rendered into a BGRA bitmap at the requested DPI, then encoded as JPEG.
+rendered into a BGRA bitmap at the requested DPI, then encoded as JPEG. PDFium
+draws on pdfrx's worker isolate already, so exporting also moved the encode —
+the part that used to cost a quarter of a second per A4 page on the UI isolate
+— onto an isolate of its own (`page_encoder.dart`), one page at a time.
 
 ## Known limitations
 
