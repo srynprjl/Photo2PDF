@@ -59,7 +59,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _setLocation(_location.copyWith(folder: chosen));
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('PDFs will go to ${prettyPath(chosen)}')));
+      ..showSnackBar(
+        SnackBar(content: Text('PDFs will go to ${prettyPath(chosen)}')),
+      );
   }
 
   void _useDefaultFolder() {
@@ -67,7 +69,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
-        SnackBar(content: Text('PDFs will go to ${prettyPath(defaultSaveFolder())}')),
+        SnackBar(
+          content: Text('PDFs will go to ${prettyPath(defaultSaveFolder())}'),
+        ),
       );
   }
 
@@ -84,6 +88,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _PhotoSourceCard(
                   source: _photoSource,
                   onChanged: _setPhotoSource,
+                  allowCamera: _isPhone,
                 ),
                 const SizedBox(height: 20),
                 const _SectionTitle('Save location'),
@@ -91,7 +96,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   location: _location,
                   isPhone: _isPhone,
                   onChangeFolder: _pickFolder,
-                  onUseDefaultFolder: _location.folder == null ? null : _useDefaultFolder,
+                  onUseDefaultFolder: _location.folder == null
+                      ? null
+                      : _useDefaultFolder,
                   onAskEveryTime: (bool value) =>
                       _setLocation(_location.copyWith(askEveryTime: value)),
                 ),
@@ -99,10 +106,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _Hint(
                   _isPhone
                       ? 'Android only lets an app write into its own folder in '
-                          'Downloads without asking. Turn on "Ask each time" to '
-                          'put a PDF somewhere else.'
+                            'Downloads without asking. Turn on "Ask each time" to '
+                            'put a PDF somewhere else.'
                       : 'Turning this off keeps PDFs in the folder above, so '
-                          'one tap is enough to save.',
+                            'one tap is enough to save.',
                 ),
               ],
             ),
@@ -111,10 +118,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _PhotoSourceCard extends StatelessWidget {
-  const _PhotoSourceCard({required this.source, required this.onChanged});
+  const _PhotoSourceCard({
+    required this.source,
+    required this.onChanged,
+    required this.allowCamera,
+  });
 
   final PhotoSource source;
   final ValueChanged<PhotoSource> onChanged;
+
+  /// The camera plugin only covers phones and the web.
+  final bool allowCamera;
 
   @override
   Widget build(BuildContext context) {
@@ -125,29 +139,38 @@ class _PhotoSourceCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             SegmentedButton<PhotoSource>(
-              segments: const <ButtonSegment<PhotoSource>>[
-                ButtonSegment<PhotoSource>(
+              segments: <ButtonSegment<PhotoSource>>[
+                const ButtonSegment<PhotoSource>(
                   value: PhotoSource.gallery,
                   icon: Icon(Icons.photo_library_outlined),
                   label: Text('Gallery'),
                 ),
-                ButtonSegment<PhotoSource>(
+                const ButtonSegment<PhotoSource>(
                   value: PhotoSource.files,
                   icon: Icon(Icons.folder_open_outlined),
                   label: Text('Files'),
                 ),
+                if (allowCamera)
+                  const ButtonSegment<PhotoSource>(
+                    value: PhotoSource.camera,
+                    icon: Icon(Icons.photo_camera_outlined),
+                    label: Text('Camera'),
+                  ),
               ],
               selected: <PhotoSource>{source},
               onSelectionChanged: (Set<PhotoSource> selection) =>
                   onChanged(selection.first),
             ),
             const SizedBox(height: 12),
-            _Hint(
-              source == PhotoSource.gallery
-                  ? 'Add photos opens the gallery, the fastest way in on a phone.'
-                  : 'Add photos opens the file browser, for downloads and '
-                      'unusual formats.',
-            ),
+            _Hint(switch (source) {
+              PhotoSource.gallery =>
+                'Add photos opens the gallery, the fastest way in on a phone.',
+              PhotoSource.files =>
+                'Add photos opens the file browser, for downloads and unusual '
+                    'formats.',
+              PhotoSource.camera =>
+                'Add photos opens the camera, so pages can be shot as you go.',
+            }),
           ],
         ),
       ),

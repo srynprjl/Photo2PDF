@@ -14,6 +14,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/image_card.dart';
 import '../widgets/notices.dart';
 import '../widgets/output_panel.dart';
+import 'camera_screen.dart';
 import 'settings_screen.dart';
 
 class ConverterScreen extends StatefulWidget {
@@ -68,7 +69,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   Future<void> _restoreSettings() async {
     final PdfSettings? saved = await SettingsStore.instance.load();
-    final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
+    final SaveLocation location = await SettingsStore.instance
+        .loadSaveLocation();
     final PhotoSource source = await SettingsStore.instance.loadPhotoSource();
     if (!mounted) return;
     setState(() {
@@ -94,7 +96,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
       }
     }
     if (!mounted) return;
-    final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
+    final SaveLocation location = await SettingsStore.instance
+        .loadSaveLocation();
     final PhotoSource source = await SettingsStore.instance.loadPhotoSource();
     if (!mounted) return;
     setState(() {
@@ -152,8 +155,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
     setState(() => _password = value.isEmpty ? null : value);
   }
 
-  int get _totalBytes =>
-      _images.fold(0, (int total, SelectedImage image) => total + image.byteSize);
+  int get _totalBytes => _images.fold(
+    0,
+    (int total, SelectedImage image) => total + image.byteSize,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -244,9 +249,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
           setState(() => _dragging = false),
       onDragDone: (DropDoneDetails details) {
         setState(() => _dragging = false);
-        _addDropped(
-          <String>[for (final DropItem file in details.files) file.path],
-        );
+        _addDropped(<String>[
+          for (final DropItem file in details.files) file.path,
+        ]);
       },
       child: Stack(
         children: <Widget>[
@@ -295,8 +300,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
             onReorderItem: _reorder,
             proxyDecorator:
                 (Widget child, int index, Animation<double> animation) {
-              return Material(color: Colors.transparent, child: child);
-            },
+                  return Material(color: Colors.transparent, child: child);
+                },
             itemBuilder: (BuildContext context, int index) {
               final SelectedImage image = _images[index];
               return ImageCard(
@@ -315,9 +320,19 @@ class _ConverterScreenState extends State<ConverterScreen> {
   Future<void> _addImages() async {
     if (_busy) return;
     try {
-      final PickedImages? picked =
-          await ImagePickerService.instance.pick(source: _photoSource);
-      _ingest(picked);
+      // The camera plugin has no desktop build, so a saved Camera choice falls
+      // back to the gallery if the app is ever opened somewhere else.
+      final bool wantsCamera =
+          _photoSource == PhotoSource.camera &&
+          (Platform.isAndroid || Platform.isIOS);
+      if (wantsCamera) {
+        final List<Uint8List> shots = await CameraScreen.open(context);
+        if (!mounted || shots.isEmpty) return;
+        _ingest(await ImagePickerService.instance.addCaptures(shots));
+        return;
+      }
+
+      _ingest(await ImagePickerService.instance.pick(source: _photoSource));
     } catch (error) {
       _notify('Could not open the images: $error', isError: true);
     }
@@ -379,7 +394,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
       _notify(
         result.saved
             ? 'Saved to ${result.displayPath ?? result.path}'
-                '${_password == null ? '' : ' (password protected)'}'
+                  '${_password == null ? '' : ' (password protected)'}'
             : 'Save cancelled',
       );
     } catch (error) {
@@ -392,7 +407,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   void _remove(int id) {
-    setState(() => _images.removeWhere((SelectedImage image) => image.id == id));
+    setState(
+      () => _images.removeWhere((SelectedImage image) => image.id == id),
+    );
   }
 
   /// Beyond a photo or two, wiping the list asks first: the undo button only
@@ -508,9 +525,8 @@ class _DropHint extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 'Drop the photos here',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: scheme.onPrimaryContainer,
-                    ),
+                style: Theme.of(context).textTheme.titleMedium
+                    ?.copyWith(color: scheme.onPrimaryContainer),
               ),
             ],
           ),

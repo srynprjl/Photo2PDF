@@ -9,12 +9,13 @@ import '../core/platform_decoder.dart';
 import '../models/selected_image.dart';
 
 /// Where the picker looks for photos.
-enum PhotoSource { gallery, files }
+enum PhotoSource { gallery, files, camera }
 
 extension PhotoSourceLabels on PhotoSource {
   String get label => switch (this) {
     PhotoSource.gallery => 'Gallery',
     PhotoSource.files => 'Files',
+    PhotoSource.camera => 'Camera',
   };
 }
 
@@ -117,6 +118,31 @@ class ImagePickerService {
     } on Exception {
       return null;
     }
+  }
+
+  /// Photos taken with the camera, which arrive as JPEG bytes.
+  ///
+  /// Each gets a distinct name, so a batch of pages does not all claim to be
+  /// the same file when the PDF is named after the first photo.
+  Future<PickedImages> addCaptures(List<Uint8List> photos) async {
+    final DateTime at = DateTime.now();
+    String two(int value) => value.toString().padLeft(2, '0');
+    final String stamp =
+        '${at.year}${two(at.month)}${two(at.day)}_'
+        '${two(at.hour)}${two(at.minute)}${two(at.second)}';
+
+    final List<SelectedImage> images = <SelectedImage>[];
+    final List<String> rejected = <String>[];
+    for (int i = 0; i < photos.length; i++) {
+      final String name = 'camera_${stamp}_${i + 1}.jpg';
+      final SelectedImage? image = await _toSelected(photos[i], name);
+      if (image == null) {
+        rejected.add(name);
+      } else {
+        images.add(image);
+      }
+    }
+    return PickedImages(images: images, rejected: rejected);
   }
 
   /// One file's journey into the list: right way up, decodable, measured.

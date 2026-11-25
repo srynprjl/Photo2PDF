@@ -8,15 +8,18 @@ nothing is uploaded anywhere.
 
 ## Two modes
 
-**To PDF** — pick photos from the gallery or the file browser (or drop them
-straight onto the desktop window), drag them into the order you want, and get a
-single PDF.
+**To PDF** — pick photos from the gallery, the file browser or the camera (or
+drop them straight onto the desktop window), drag them into the order you want,
+and get a single PDF.
 
 On Linux and Windows the whole window becomes a drop target while a file is
 held over it, and unsupported files are named back to you instead of silently
 vanishing.
 
 - Any format the system can decode: JPEG, PNG, WebP, BMP, HEIC, TIFF, GIF.
+- **Camera** on a phone: a preview with a shutter, so pages can be shot as you
+  go. Each tap adds a shot and they all arrive together on **Done**; back keeps
+  what you shot. Nothing leaves the device.
 - Page size **A4**, **Letter**, or **Fit image** (the page takes the photo's own
   shape); orientation **Auto**, **Vertical** or **Horizontal**.
 - **Fit** or **Fill**: fit keeps the whole photo and leaves white bands where
@@ -60,8 +63,9 @@ comes out as a JPEG.
 | Android | `Downloads/Photo2PDF` | any folder, or ask every time |
 | Linux desktop | `~/Downloads/Photo2PDF`, falling back to `~/Documents/Photo2PDF` | any folder, or ask every time |
 
-Settings — save folder, gallery vs. file browser for picking, page size,
-orientation, margin, compression — are remembered between launches.
+Settings — save folder, gallery vs. file browser vs. camera for picking, page
+size, orientation, fit/fill, margin, compression — are remembered between
+launches.
 
 ## Build and run
 
@@ -91,6 +95,7 @@ lib/src/screens/home_screen.dart     bottom bar: to PDF / to photos
 lib/src/screens/converter_screen.dart      photos to PDF
 lib/src/screens/pdf_to_images_screen.dart  PDF to photos
 lib/src/screens/settings_screen.dart       photo source + save folder
+lib/src/screens/camera_screen.dart         taking photos inside the app
 lib/src/core/pdf_builder.dart        page layout, compression, PDF assembly
 lib/src/core/pdf_encryption.dart     RC4 128-bit password protection
 lib/src/services/                    picking, saving, rendering, settings

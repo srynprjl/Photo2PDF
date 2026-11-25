@@ -19,7 +19,7 @@ with a Material 3 interface.
 | PDF → photos: one JPEG per page at 150 / 200 / 300 DPI | Scanning, OCR, sharing |
 | Compress photos on the way in (original / balanced / small) | Editing, cropping |
 | Password-protect the PDF | Watermarks, signatures |
-| Photos from the gallery (default) or the file browser | Camera capture, cloud drives |
+| Photos from the gallery (default), the file browser or the camera | Cloud drives, burst mode |
 | Adjustable white margin | Cloud upload / accounts |
 | Save the PDF to disk | Printing, in-app sharing |
 
@@ -92,6 +92,7 @@ lib/src/screens/home_screen.dart           bottom bar: to PDF / to photos
 lib/src/screens/converter_screen.dart      photos to PDF and its state
 lib/src/screens/pdf_to_images_screen.dart  PDF to photos and its state
 lib/src/screens/settings_screen.dart       photo source + save folder
+lib/src/screens/camera_screen.dart         in-app camera: preview, shutter, Done
 lib/src/widgets/output_panel.dart          page size, orientation, fit/fill, margin
 lib/src/widgets/empty_state.dart           first-run empty state
 lib/src/widgets/image_card.dart            thumbnail row with drag handle
@@ -149,7 +150,10 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
       from 31.1 MB to 17.2 MB, while the same JPEG stayed at 1.26 MB).
 - [x] Choose where PDFs go in a Settings screen (`Downloads/Photo2PDF` by
       default, any folder on desktop, "ask each time" for a system dialog).
-- [x] Gallery by default, with a Gallery / Files switch in Settings.
+- [x] Gallery by default, with a Gallery / Files / Camera switch in Settings.
+- [x] Camera preview with a shutter and a running count, so a stack of pages
+      can be shot in one visit; Done and the system back button both keep the
+      shots.
 - [x] Desktop drag & drop of photos onto the window (`desktop_drop`): a
       highlight covers the window while a file hovers, dropped paths go through
       the same checks as picked ones, and only the visible tab takes drops.
@@ -197,11 +201,11 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 55 passing |
+| Unit tests | `flutter test` | 58 passing |
 | Locked PDF | Emulator + `qpdf` | the password-protected PDF made earlier opens after `test1234` (`Wrong password` reasks after a bad one, `Cancel` keeps the previous document), converts to 2 JPEGs at 1700×2200 that match a `pdftoppm` render of the qpdf-decrypted copy, and an unencrypted PDF still opens with no prompt |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF`; the page field shows `Will save 2 of 4 pages.` for `2-3` and writes only those two JPEGs, and `9` is refused with `Only pages 1–4 exist in this PDF.`; on an A4 page with a 0 mm margin the same photo is placed 650×842 at -27 mm with Fill (covers the sheet) and 595×771 at +36 mm with Fit (bands top and bottom) |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF`; the page field shows `Will save 2 of 4 pages.` for `2-3` and writes only those two JPEGs, and `9` is refused with `Only pages 1–4 exist in this PDF.`; on an A4 page with a 0 mm margin the same photo is placed 650×842 at -27 mm with Fill (covers the sheet) and 595×771 at +36 mm with Fit (bands top and bottom); Camera in Settings opens the in-app preview, two shutter taps give `camera_20261126_002656_1.jpg` and `_2.jpg` (720×1280) which make a 2-page A4 PDF at 109 ppi, and the system back button after one shot keeps it (list goes 2 → 3 photos) |
 
 Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.
