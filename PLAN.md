@@ -1,6 +1,6 @@
-# JPG to PDF — build plan
+# Photo2PDF — build plan
 
-A small, offline-first utility that turns a set of JPG photos into one PDF, on
+A small, offline-first utility that turns a set of photos into one PDF, on
 **desktop (Linux/Windows/macOS)** and **Android**, from a single Flutter codebase
 with a Material 3 interface.
 
@@ -10,27 +10,37 @@ with a Material 3 interface.
 
 | In scope (v1) | Out of scope (v1) |
 | --- | --- |
-| Pick multiple JPG/JPEG files | OCR / text extraction |
-| Reorder pages, remove single images, clear all | Editing or cropping photos |
+| Pick photos in any format we can decode | OCR / text extraction |
+| Reorder pages, remove one, clear all | Editing or cropping photos |
 | Page size: A4, Letter, or match the photo | Merging existing PDFs |
 | Adjustable white margin | Cloud upload / accounts |
-| Save the PDF to disk | Printing, sharing targets |
+| Save the PDF to disk | Printing, in-app sharing |
 
-Everything runs on the device. No network access, no telemetry, no uploads —
-which also means no privacy policy or backend to maintain for a first release.
+Everything runs on the device. No network access, no telemetry, no uploads.
 
-## 2. Why Flutter
+## 2. Supported photo formats
 
-- One widget tree for desktop and Android: the whole UI and the PDF logic are
-  shared, only the file picker and the save path differ per platform.
-- Material 3 comes from the `material_ui` package that Flutter 3.50 ships with
-  (`ColorScheme.fromSeed`, `FilledButton`, `ChoiceChip`, adaptive visual
-  density), so the UI follows Material guidance on both platforms.
-- The `pdf` package writes PDFs in pure Dart and can **embed a JPEG byte-for-byte**
-  (no decode/re-encode), so conversion is fast and output size stays close to the
-  input.
+| Format | How it is handled |
+| --- | --- |
+| JPEG/JPG | Embedded byte-for-byte (`DCTDecode`), no re-encode — smallest output |
+| PNG, WebP, GIF, BMP, TIFF | Decoded by the `image` package and stored as pixels |
+| HEIC/HEIF, AVIF | Decoded by the platform codec (`dart:ui`), transcoded to PNG once |
+| TGA, ICO, PSD, PNM, EXR, PVR | Decoded by the `image` package (reachable when a file arrives, e.g. via a future drag-and-drop) |
 
-## 3. Architecture
+Anything undecodable is skipped with a message, never silently dropped or
+written as a broken page. Page orientation follows the photo: a landscape photo
+gets a landscape sheet.
+
+## 3. Why Flutter
+
+- One widget tree for desktop and Android; only the file picker and the save
+  path differ per platform.
+- Material 3 comes from the `material_ui` package shipped with Flutter 3.50
+  (`ColorScheme.fromSeed`, `FilledButton`, `ChoiceChip`, adaptive density).
+- The `pdf` package writes PDFs in pure Dart, passes JPEG through untouched and
+  rasterises everything else via `package:image`.
+
+## 4. Architecture
 
 ```
 UI (Material 3)                    lib/src/screens, lib/src/widgets
@@ -42,25 +52,26 @@ Services (platform edges)          lib/src/services
 Core (pure Dart, no plugins)       lib/src/core
 ```
 
-- **Core** — `jpeg_info.dart` reads the SOFn segment of a JPEG for width, height
-  and component count (no decode); `pdf_builder.dart` lays one image per page on
-  A4 / Letter / photo-sized pages and returns PDF bytes. Pure Dart, unit-testable.
-- **Services** — `image_picker_service.dart` (file_picker, validates each file,
-  reports rejected ones) and `pdf_saver.dart` (save dialog on desktop via
-  `file_selector`, shared Downloads on Android via `file_saver`).
-- **UI** — one screen: image list with drag-to-reorder, options panel, progress
-  and snackbar feedback. Responsive: a two-column layout from 840 px wide
-  (desktop), a stacked layout below (phones).
+- **Core** — `photo_info.dart` sniffs the format and reads width/height (JPEG
+  from its SOFn header, everything else through `image`); `platform_decoder.dart`
+  is the `dart:ui` fallback for HEIC/AVIF; `pdf_builder.dart` lays one photo per
+  page on A4 / Letter / photo-sized pages.
+- **Services** — `image_picker_service.dart` (file_picker with an image
+  extension filter, validates and transcodes when needed) and `pdf_saver.dart`
+  (save dialog on desktop, MediaStore Downloads on Android).
+- **UI** — one responsive screen: two columns from 840 px (desktop), stacked
+  below (phones), options capped at 55% of the height so nothing is clipped.
 
 ### Data flow
 
-1. `Add images` → picker returns bytes → JPEG header parsed → `SelectedImage`
-   list (id, name, bytes, width, height).
+1. `Add photos` → picker returns bytes → format sniffed → HEIC transcoded if
+   needed → `SelectedImage` list (id, name, bytes, width, height).
 2. User reorders / removes; page size and margin live in screen state.
-3. `Create PDF` → `buildPdf()` → bytes → `PdfSaver.save()` → snackbar with the
-   final path.
+3. `Create PDF` → `buildPdf()` → bytes → `PdfSaver.save()` → snackbar with a
+   readable location (`Downloads/<name>.pdf` on Android, the chosen path on
+   desktop).
 
-## 4. File map
+## 5. File map
 
 ```
 lib/main.dart                              app entry, MaterialApp with themes
@@ -68,98 +79,99 @@ lib/src/theme.dart                         Material 3 palette + component themes
 lib/src/screens/converter_screen.dart      the single screen and its state
 lib/src/widgets/empty_state.dart           first-run empty state
 lib/src/widgets/image_card.dart            thumbnail row with drag handle
-lib/src/core/jpeg_info.dart                JPEG header parser
+lib/src/core/photo_info.dart               format sniffing + JPEG header parser
+lib/src/core/platform_decoder.dart         dart:ui fallback for HEIC/AVIF
 lib/src/core/pdf_builder.dart              page sizing + PDF assembly
-lib/src/models/selected_image.dart         image model + size formatting
-lib/src/services/image_picker_service.dart file picking + validation
+lib/src/models/selected_image.dart         photo model + size formatting
+lib/src/services/image_picker_service.dart file picking, validation, transcoding
 lib/src/services/pdf_saver.dart            platform-aware saving
-test/jpeg_info_test.dart                   parser tests
-test/pdf_builder_test.dart                 PDF output tests
+test/photo_info_test.dart                  format/size parsing tests
+test/pdf_builder_test.dart                 PDF output tests (6 formats)
+test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 ```
 
-## 5. Milestones
+## 6. Milestones
 
-### M0 — Foundation (this commit)
+### M0 — Foundation (done)
 
-- [x] Flutter project for Android + Linux + Windows + macOS
+- [x] Flutter project for Android + Linux + Windows + macOS, app id
+      `com.sysnefo.photo2pdf`
 - [x] Material 3 theme (light + dark, seeded palette, adaptive density)
-- [x] Pick multiple JPGs, validate them, show thumbnail list
+- [x] Pick photos, validate them, show a thumbnail list
 - [x] Reorder, remove, clear all
-- [x] Page size (A4 / Letter / fit image) + margin
-- [x] PDF generation with JPEG passthrough
+- [x] Page size (A4 / Letter / fit photo) + margin
+- [x] PDF generation, JPEG passthrough, multi-format decode
 - [x] Save to disk per platform
-- [x] Unit tests for the parser and the PDF output
-- [x] Android debug APK builds against the local SDK
-- [ ] Signed Android release build (needs a keystore + Play/F-Droid setup)
+- [x] Unit tests for format parsing and PDF output (9 tests)
+- [x] Android debug APK, tested on an emulator
+- [ ] Signed Android release build (needs a keystore + store setup)
 
 ### M1 — Everyday usability
 
 - Desktop drag & drop of files onto the window (`desktop_drop`).
-- Show the chosen output file name in the options panel.
-- Page preview: render the first page as a thumbnail before saving.
+- Show the output file name in the options panel.
 - Remember the last page size and margin (`shared_preferences`).
-- Keep EXIF orientation: read the Orientation tag and rotate the page.
-- Accept PNG as well (needs a Flutter-side decode/encode via `image`).
+- Bake EXIF orientation, so phone photos never come out sideways.
+- Downscale huge photos for `Fit photo` pages to keep the PDF small.
 
 ### M2 — Release readiness
 
-- Launcher icon + adaptive icon, splash colour, app metadata
-  (`flutter_launcher_icons`, `flutter_native_splash`).
-- Android: `minSdk` review, `signingConfig` with a keystore kept out of git,
-  `flutter build appbundle`; F-Droid/Play listing text and screenshots.
-- Desktop: `flutter build linux|windows|macos --release`, a `.desktop` entry and
-  an AppImage/deb wrapper for Linux.
+- Launcher icon + adaptive icon, splash colour, store metadata.
+- Android: review `minSdk`, keystore-backed `signingConfig`, `appbundle`;
+  listing text and screenshots.
+- Desktop: release bundles, `.desktop` entry, AppImage/deb wrapper.
 - CI: `flutter analyze` + `flutter test` on push, artifact builds per platform.
-- Larger-batch safety: guard against out-of-memory on 50+ photos by streaming
-  pages instead of holding every image in state.
+- Guard against out-of-memory on 50+ photos by streaming pages.
 
-## 6. Risks and limitations
+## 7. Risks and limitations
 
-- **CMYK JPEGs** — the PDF writer only passes through greyscale and YCbCr data,
-  so four-component files are refused with a message instead of producing a
-  broken page (`readJpegInfo(...).isCmyk`).
-- **Memory** — picked files are held in memory (a few MB each). Fine for tens of
-  photos, and the `cacheWidth` on thumbnails keeps previews cheap; M2 adds a cap.
-- **EXIF rotation** — phone photos may be rotated. Until M1, rotate them with the
-  page if they come out sideways.
-- **Android saving** — there is no cross-platform "Save as" dialog on Android;
-  the file is written to the shared Downloads folder and the snackbar shows the
-  path. A share sheet (`share_plus`) is the natural follow-up.
-- **Android build on this machine** — `/opt/android-sdk` has no platforms and is
-  not writable; verification uses a project-local `.toolchain/android-sdk`
-  (platforms 35/36, build-tools 36, NDK 28.2) referenced by
-  `android/local.properties`. Install a normal SDK and update `sdk.dir` to drop
-  the local one.
+- **HEIC/AVIF on desktop** — Skia on Linux/Windows/macOS usually cannot decode
+  them, so those files are rejected there; Android handles them. A libheif-based
+  decoder would close the gap.
+- **Memory** — picked files are held in memory (a few MB each; HEIC transcodes
+  to PNG). Fine for tens of photos; M2 adds a cap.
+- **EXIF rotation** — phone photos may be stored rotated; until M1 rotates them,
+  a sideways photo stays sideways.
+- **Android saving** — no cross-platform "Save as" dialog: the file goes to the
+  public Downloads folder via MediaStore, falling back to the app's own files
+  directory. A share sheet (`share_plus`) is the natural follow-up.
+- **Android picker** — Android redirects image file requests to its Photo Picker
+  for gallery images; the file browser ("Downloads", "Images") is still
+  reachable from the picker's drawer for files outside the gallery.
 
-## 7. Verification
+## 8. Verification
 
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 6 passing |
+| Unit tests | `flutter test` | 9 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
-| Android build | `flutter build apk --debug` | builds (`build/app/outputs/flutter-apk/app-debug.apk`) |
+| Android build | `flutter build apk --debug` | builds, installs on emulator |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF in Downloads |
 
-Not yet exercised by hand: picking files, converting, and saving on a real
-phone, and the GTK / Win32 save dialog on desktop.
+Not yet exercised: a physical phone, the GTK / Win32 save dialog on desktop,
+desktop HEIC, and drag-to-reorder on a device.
 
-## 8. Working with the project
+## 9. Working with the project
 
 ```bash
 flutter pub get
 flutter run -d linux            # desktop
-flutter run -d <android-device> # phone, USB debugging on
+flutter run -d emulator-5554    # Android emulator (AVD `jpg2pdf`)
 
 # Android needs an SDK with platforms + build-tools + NDK. On this machine the
-# usable SDK lives in .toolchain/android-sdk (gitignored, ~2.6 GB), so point
-# Flutter at it once -- the global config otherwise wins over local.properties:
+# usable SDK lives in .toolchain/android-sdk (gitignored), so point Flutter at
+# it once — the global config otherwise wins over local.properties:
 flutter config --android-sdk "$PWD/.toolchain/android-sdk"
 export JAVA_HOME=/usr/lib/jvm/java-21-openjdk
-export ANDROID_SDK_ROOT="$PWD/.toolchain/android-sdk"
 flutter build apk --debug
 
-# With a normal SDK installed system-wide, skip the flutter config line and use
-# `flutter config --android-sdk <path>` (or unset it) to match.
+# Emulator as a user unit so it outlives the shell that started it:
+systemd-run --user --unit=jpg2pdf-emu --collect \
+  --setenv=ANDROID_SDK_ROOT="$PWD/.toolchain/android-sdk" \
+  /opt/android-sdk/emulator/emulator -avd jpg2pdf -no-window -no-snapshot -no-audio \
+  -no-boot-anim -gpu swiftshader_indirect -memory 2048
 ```
 
-`flutter doctor -v` lists anything still missing for a platform.
+The project folder is still named `jpg_to_pdf`; everything inside (package name,
+app id, window titles, binary name) now says `photo2pdf` / Photo2PDF.
