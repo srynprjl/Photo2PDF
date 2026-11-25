@@ -14,6 +14,7 @@ with a Material 3 interface.
 | Reorder pages, remove one, clear all | Editing or cropping photos |
 | Page size: A4, Letter, or match the photo | Merging existing PDFs |
 | Page orientation: auto, vertical, horizontal | Printing, sharing |
+| Photos from the gallery (default) or the file browser | Camera capture, cloud drives |
 | Adjustable white margin | Cloud upload / accounts |
 | Save the PDF to disk | Printing, in-app sharing |
 
@@ -58,8 +59,9 @@ Core (pure Dart, no plugins)       lib/src/core
   from its SOFn header, everything else through `image`); `platform_decoder.dart`
   is the `dart:ui` fallback for HEIC/AVIF; `pdf_builder.dart` lays one photo per
   page on A4 / Letter / photo-sized pages, upright or on its side as chosen.
-- **Services** — `image_picker_service.dart` (file_picker with an image
-  extension filter, validates and transcodes when needed), `pdf_saver.dart`
+- **Services** — `image_picker_service.dart` (the system photo picker by
+  default, the file browser with an extension filter on request; validates and
+  transcodes when needed), `pdf_saver.dart`
   (writes into the chosen folder, `Downloads/Photo2PDF` on Android through
   MediaStore, real folder on desktop) and `settings_store.dart` /
   `save_location.dart` (the remembered setup and the folder helpers).
@@ -128,6 +130,7 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
       from 31.1 MB to 17.2 MB, while the same JPEG stayed at 1.26 MB).
 - [x] Choose where PDFs go in a Settings screen (`Downloads/Photo2PDF` by
       default, any folder on desktop, "ask each time" for a system dialog).
+- [x] Gallery by default, with a Gallery / Files switch in Settings.
 - [ ] Desktop drag & drop of files onto the window (`desktop_drop`).
 
 ### M2 — Release readiness
@@ -162,10 +165,10 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 34 passing |
+| Unit tests | `flutter test` | 36 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen |
 
 Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.
