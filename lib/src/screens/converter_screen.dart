@@ -29,6 +29,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   /// Never persisted: a PDF password should not sit in the app's preferences.
   String? _password;
+
+  /// Lives with the screen: the dialog is gone before its text is read, and a
+  /// controller disposed any earlier trips a framework assertion.
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _passwordController.dispose();
+    super.dispose();
+  }
   SaveLocation _saveLocation = const SaveLocation();
   bool _busy = false;
 
@@ -85,14 +95,13 @@ class _ConverterScreenState extends State<ConverterScreen> {
   }
 
   Future<void> _editPassword() async {
-    final TextEditingController controller =
-        TextEditingController(text: _password ?? '');
+    _passwordController.text = _password ?? '';
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) => AlertDialog(
         title: Text(_password == null ? 'Protect with a password' : 'Change the password'),
         content: TextField(
-          controller: controller,
+          controller: _passwordController,
           autofocus: true,
           obscureText: true,
           decoration: const InputDecoration(
@@ -113,8 +122,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
         ],
       ),
     );
-    final String value = controller.text;
-    controller.dispose();
+    final String value = _passwordController.text;
     if (confirmed != true || !mounted) return;
     setState(() => _password = value.isEmpty ? null : value);
   }
