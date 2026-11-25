@@ -57,8 +57,10 @@ Core (pure Dart, no plugins)       lib/src/core
   is the `dart:ui` fallback for HEIC/AVIF; `pdf_builder.dart` lays one photo per
   page on A4 / Letter / photo-sized pages.
 - **Services** — `image_picker_service.dart` (file_picker with an image
-  extension filter, validates and transcodes when needed) and `pdf_saver.dart`
-  (save dialog on desktop, MediaStore Downloads on Android).
+  extension filter, validates and transcodes when needed), `pdf_saver.dart`
+  (writes into the chosen folder, `Downloads/Photo2PDF` on Android through
+  MediaStore, real folder on desktop) and `settings_store.dart` /
+  `save_location.dart` (the remembered setup and the folder helpers).
 - **UI** — one responsive screen: two columns from 840 px (desktop), stacked
   below (phones), options capped at 55% of the height so nothing is clipped.
 
@@ -67,9 +69,10 @@ Core (pure Dart, no plugins)       lib/src/core
 1. `Add photos` → picker returns bytes → format sniffed → HEIC transcoded if
    needed → `SelectedImage` list (id, name, bytes, width, height).
 2. User reorders / removes; page size and margin live in screen state.
-3. `Create PDF` → `buildPdf()` → bytes → `PdfSaver.save()` → snackbar with a
-   readable location (`Downloads/<name>.pdf` on Android, the chosen path on
-   desktop).
+3. `Create PDF` → `buildPdf()` → bytes → `PdfSaver.save()` → the file lands in
+   the save folder (`Downloads/Photo2PDF` on Android, `~/Downloads/Photo2PDF`
+   or the folder picked in Settings on desktop) → snackbar with that location.
+   `Ask each time` in Settings swaps the folder for a system save dialog.
 
 ## 5. File map
 
@@ -77,6 +80,7 @@ Core (pure Dart, no plugins)       lib/src/core
 lib/main.dart                              app entry, MaterialApp with themes
 lib/src/theme.dart                         Material 3 palette + component themes
 lib/src/screens/converter_screen.dart      the single screen and its state
+lib/src/screens/settings_screen.dart       save folder + "ask each time" switch
 lib/src/widgets/empty_state.dart           first-run empty state
 lib/src/widgets/image_card.dart            thumbnail row with drag handle
 lib/src/core/photo_info.dart               format sniffing + JPEG header parser
@@ -85,8 +89,13 @@ lib/src/core/pdf_builder.dart              page sizing + PDF assembly
 lib/src/models/selected_image.dart         photo model + size formatting
 lib/src/services/image_picker_service.dart file picking, validation, transcoding
 lib/src/services/pdf_saver.dart            platform-aware saving
+lib/src/services/save_location.dart        save folder, unique names, labels
+lib/src/services/settings_store.dart       remembered page size, margin, folder
 test/photo_info_test.dart                  format/size parsing tests
 test/pdf_builder_test.dart                 PDF output tests (6 formats)
+test/photo_normalizer_test.dart            EXIF rotation tests
+test/save_location_test.dart               folder, free name, saving tests
+test/settings_store_test.dart              persisted settings tests
 test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 ```
 
@@ -101,8 +110,8 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Reorder, remove, clear all
 - [x] Page size (A4 / Letter / fit photo) + margin
 - [x] PDF generation, JPEG passthrough, multi-format decode
-- [x] Save to disk per platform
-- [x] Unit tests for format parsing and PDF output (9 tests)
+- [x] Save to disk per platform, into `Downloads/Photo2PDF` by default
+- [x] Unit tests for format parsing and PDF output (30 tests)
 - [x] Android debug APK, tested on an emulator
 - [ ] Signed Android release build (needs a keystore + store setup)
 
@@ -114,6 +123,8 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] Keep raster photos from bloating the PDF: anything that is not a JPEG is
       resampled to 300 DPI for the page (measured: a 4032×3024 PNG page went
       from 31.1 MB to 17.2 MB, while the same JPEG stayed at 1.26 MB).
+- [x] Choose where PDFs go in a Settings screen (`Downloads/Photo2PDF` by
+      default, any folder on desktop, "ask each time" for a system dialog).
 - [ ] Desktop drag & drop of files onto the window (`desktop_drop`).
 
 ### M2 — Release readiness
@@ -135,9 +146,10 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - **EXIF metadata** — a photo that needs rotation has its EXIF block dropped
   when the pixels are baked (which also removes GPS and device serial numbers).
   Photos that are already upright keep their original bytes.
-- **Android saving** — no cross-platform "Save as" dialog: the file goes to the
-  public Downloads folder via MediaStore, falling back to the app's own files
-  directory. A share sheet (`share_plus`) is the natural follow-up.
+- **Android saving** — an app may write into its own folder in Downloads
+  without asking, so the default is `Downloads/Photo2PDF`; any other location
+  needs the "Ask each time" dialog. A share sheet (`share_plus`) is the natural
+  follow-up. iOS is untested.
 - **Android picker** — Android redirects image file requests to its Photo Picker
   for gallery images; the file browser ("Downloads", "Images") is still
   reachable from the picker's drawer for files outside the gallery.
@@ -147,12 +159,12 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 15 passing |
+| Unit tests | `flutter test` | 30 passing |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF in Downloads; rotated JPEG shows upright; page size survives a restart |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size survives a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog |
 
-Not yet exercised: a physical phone, the GTK / Win32 save dialog on desktop,
+Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.
 
 ## 9. Working with the project
