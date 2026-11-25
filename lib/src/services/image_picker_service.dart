@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 
 import '../core/photo_info.dart';
+import '../core/photo_normalizer.dart';
 import '../core/platform_decoder.dart';
 import '../models/selected_image.dart';
 
@@ -52,6 +53,10 @@ class ImagePickerService {
 
     for (final PlatformFile file in files) {
       Uint8List? bytes = await _readBytes(file);
+      // EXIF rotation lives in metadata, which PDF viewers ignore.
+      if (bytes != null) {
+        bytes = bakeJpegOrientation(bytes);
+      }
       PhotoInfo? info = bytes == null ? null : readPhotoInfo(bytes);
 
       // HEIC/AVIF and other container formats only the engine understands:
