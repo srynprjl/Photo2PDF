@@ -1,6 +1,7 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/pdf_builder.dart';
+import 'save_location.dart';
 
 /// The parts of the output setup worth remembering between runs.
 class PdfSettings {
@@ -17,6 +18,8 @@ class SettingsStore {
 
   static const String _pageSizeKey = 'pageSize';
   static const String _marginKey = 'marginMm';
+  static const String _saveFolderKey = 'saveFolder';
+  static const String _askSaveKey = 'askWhereToSave';
 
   /// Returns the saved setup, or `null` on a first run.
   Future<PdfSettings?> load() async {
@@ -47,6 +50,34 @@ class SettingsStore {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString(_pageSizeKey, settings.pageSize.name);
       await prefs.setDouble(_marginKey, settings.marginMm);
+    } on Exception {
+      // Best effort: the current session keeps working without it.
+    }
+  }
+
+  /// The folder (or the "ask me" switch) chosen in the settings screen.
+  Future<SaveLocation> loadSaveLocation() async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      return SaveLocation(
+        folder: prefs.getString(_saveFolderKey),
+        askEveryTime: prefs.getBool(_askSaveKey) ?? false,
+      );
+    } on Exception {
+      return const SaveLocation();
+    }
+  }
+
+  Future<void> saveSaveLocation(SaveLocation location) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? folder = location.folder;
+      if (folder == null) {
+        await prefs.remove(_saveFolderKey);
+      } else {
+        await prefs.setString(_saveFolderKey, folder);
+      }
+      await prefs.setBool(_askSaveKey, location.askEveryTime);
     } on Exception {
       // Best effort: the current session keeps working without it.
     }

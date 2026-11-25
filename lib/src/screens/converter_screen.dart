@@ -6,7 +6,9 @@ import '../core/pdf_builder.dart';
 import '../models/selected_image.dart';
 import '../services/image_picker_service.dart';
 import '../services/pdf_saver.dart';
+import '../services/save_location.dart';
 import '../services/settings_store.dart';
+import 'settings_screen.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/image_card.dart';
 
@@ -21,6 +23,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
   final List<SelectedImage> _images = <SelectedImage>[];
   PageSizeMode _pageSize = PageSizeMode.a4;
   double _marginMm = 10;
+  SaveLocation _saveLocation = const SaveLocation();
   bool _busy = false;
 
   @override
@@ -31,11 +34,25 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   Future<void> _restoreSettings() async {
     final PdfSettings? saved = await SettingsStore.instance.load();
-    if (saved == null || !mounted) return;
+    final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
+    if (!mounted) return;
     setState(() {
-      _pageSize = saved.pageSize;
-      _marginMm = saved.marginMm;
+      if (saved != null) {
+        _pageSize = saved.pageSize;
+        _marginMm = saved.marginMm;
+      }
+      _saveLocation = location;
     });
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (BuildContext context) => const SettingsScreen()),
+    );
+    if (!mounted) return;
+    final SaveLocation location = await SettingsStore.instance.loadSaveLocation();
+    if (!mounted) return;
+    setState(() => _saveLocation = location);
   }
 
   void _selectPageSize(PageSizeMode mode) {
@@ -64,6 +81,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
               onPressed: _busy ? null : () => setState(_images.clear),
               icon: const Icon(Icons.delete_sweep_outlined),
             ),
+          IconButton(
+            tooltip: 'Settings',
+            onPressed: _busy ? null : _openSettings,
+            icon: const Icon(Icons.settings_outlined),
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -253,6 +275,17 @@ class _ConverterScreenState extends State<ConverterScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium,
               ),
+              const SizedBox(height: 2),
+              Text(
+                _saveLocation.askEveryTime
+                    ? 'You pick the folder when saving.'
+                    : 'Saves to ${saveLocationLabel(_saveLocation)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
               const SizedBox(height: 12),
             ],
             FilledButton.icon(
@@ -312,7 +345,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
       );
       if (!mounted) return;
 
-      final SaveResult result = await PdfSaver.save(bytes, _suggestedFileName());
+      final SaveResult result = await PdfSaver.save(
+        bytes,
+        _suggestedFileName(),
+        location: _saveLocation,
+      );
       if (!mounted) return;
 
       _notify(

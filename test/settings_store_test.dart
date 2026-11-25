@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:photo2pdf/src/core/pdf_builder.dart';
+import 'package:photo2pdf/src/services/save_location.dart';
 import 'package:photo2pdf/src/services/settings_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -37,5 +38,40 @@ void main() {
     expect(loaded, isNotNull);
     expect(loaded!.pageSize, PageSizeMode.a4);
     expect(loaded.marginMm, 30);
+  });
+
+  test('starts with the default save location', () async {
+    final SaveLocation location =
+        await SettingsStore.instance.loadSaveLocation();
+
+    expect(location.folder, isNull);
+    expect(location.askEveryTime, isFalse);
+  });
+
+  test('remembers the chosen folder', () async {
+    await SettingsStore.instance.saveSaveLocation(
+      const SaveLocation(folder: '/home/me/Documents/PDFs'),
+    );
+
+    final SaveLocation location =
+        await SettingsStore.instance.loadSaveLocation();
+
+    expect(location.folder, '/home/me/Documents/PDFs');
+    expect(location.askEveryTime, isFalse);
+  });
+
+  test('remembers the ask switch and forgets the custom folder', () async {
+    await SettingsStore.instance.saveSaveLocation(
+      const SaveLocation(folder: '/tmp/x'),
+    );
+    await SettingsStore.instance.saveSaveLocation(
+      const SaveLocation(askEveryTime: true),
+    );
+
+    final SaveLocation location =
+        await SettingsStore.instance.loadSaveLocation();
+
+    expect(location.folder, isNull);
+    expect(location.askEveryTime, isTrue);
   });
 }
