@@ -71,16 +71,19 @@ class ImageCard extends StatelessWidget {
                 onPressed: onRemove,
                 icon: const Icon(Icons.close),
               ),
-              ReorderableDragStartListener(
-                index: position - 1,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 12,
-                  ),
-                  child: Icon(
-                    Icons.drag_indicator,
-                    color: scheme.onSurfaceVariant,
+              Tooltip(
+                message: 'Drag to reorder',
+                child: ReorderableDragStartListener(
+                  index: position - 1,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 12,
+                    ),
+                    child: Icon(
+                      Icons.drag_indicator,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               ),

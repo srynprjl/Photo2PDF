@@ -149,8 +149,8 @@ class _ConverterScreenState extends State<ConverterScreen> {
         actions: <Widget>[
           if (_images.isNotEmpty)
             IconButton(
-              tooltip: 'Remove all photos',
-              onPressed: _busy ? null : () => setState(_images.clear),
+              tooltip: 'Clear all photos',
+              onPressed: _busy ? null : _clearAll,
               icon: const Icon(Icons.delete_sweep_outlined),
             ),
           IconButton(
@@ -222,20 +222,18 @@ class _ConverterScreenState extends State<ConverterScreen> {
           padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
           child: Row(
             children: <Widget>[
-              Text(
-                '${_images.length} photo${_images.length == 1 ? '' : 's'} · ${formatBytes(_totalBytes)}',
-                style: theme.textTheme.titleSmall,
-              ),
-              const Spacer(),
-              Flexible(
+              Expanded(
                 child: Text(
-                  'Drag the handle to reorder',
-                  textAlign: TextAlign.end,
+                  '${_images.length} photo${_images.length == 1 ? '' : 's'} · ${formatBytes(_totalBytes)}',
                   overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
+                  style: theme.textTheme.titleSmall,
                 ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                onPressed: _busy ? null : _clearAll,
+                icon: const Icon(Icons.clear_all, size: 18),
+                label: const Text('Clear all'),
               ),
             ],
           ),
@@ -530,6 +528,32 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   void _remove(int id) {
     setState(() => _images.removeWhere((SelectedImage image) => image.id == id));
+  }
+
+  /// Clears the whole list at once, with one tap of undo in case it was a slip.
+  void _clearAll() {
+    if (_images.isEmpty || _busy) return;
+    final List<SelectedImage> removed = List<SelectedImage>.of(_images);
+    setState(_images.clear);
+
+    final ColorScheme scheme = Theme.of(context).colorScheme;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Cleared ${removed.length} photo${removed.length == 1 ? '' : 's'}',
+          ),
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: scheme.inversePrimary,
+            onPressed: () {
+              if (!mounted) return;
+              setState(() => _images.insertAll(0, removed));
+            },
+          ),
+        ),
+      );
   }
 
   void _reorder(int oldIndex, int newIndex) {
