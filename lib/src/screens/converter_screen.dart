@@ -9,6 +9,7 @@ import '../models/selected_image.dart';
 import '../services/draft_store.dart';
 import '../services/image_picker_service.dart';
 import '../services/pdf_saver.dart';
+import '../services/pdf_worker.dart';
 import '../services/save_location.dart';
 import '../services/settings_store.dart';
 import '../widgets/draft_banner.dart';
@@ -40,6 +41,9 @@ class _ConverterScreenState extends State<ConverterScreen> {
   PhotoSource _photoSource = PhotoSource.gallery;
   SaveLocation _saveLocation = const SaveLocation();
   bool _busy = false;
+
+  /// Set while a PDF is being built, so the panel can count pages.
+  PdfProgress? _progress;
 
   /// A file is hovering over the window, on desktop.
   bool _dragging = false;
@@ -224,6 +228,7 @@ class _ConverterScreenState extends State<ConverterScreen> {
               settings: _settings,
               password: _password,
               busy: _busy,
+              progress: _progress,
               photoCount: _images.length,
               fileName: _suggestedFileName(),
               location: _saveLocation,
@@ -428,10 +433,16 @@ class _ConverterScreenState extends State<ConverterScreen> {
 
   Future<void> _createPdf() async {
     if (_images.isEmpty || _busy) return;
-    setState(() => _busy = true);
+    final int total = _images.length;
+    setState(() {
+      _busy = true;
+      _progress = PdfProgress(done: 0, total: total);
+    });
 
     try {
-      final Uint8List bytes = await buildPdf(
+      // Built on a background isolate: a dozen photos is seconds of encoding,
+      // and the window has to keep scrolling while that happens.
+      final Uint8List bytes = await PdfWorker.build(
         List<SelectedImage>.of(_images),
         PdfOptions(
           pageSize: _settings.pageSize,
@@ -441,6 +452,11 @@ class _ConverterScreenState extends State<ConverterScreen> {
           compression: _settings.compression,
           password: _password,
         ),
+        onProgress: (PdfProgress progress) {
+          if (mounted) {
+            setState(() => _progress = progress);
+          }
+        },
       );
       if (!mounted) return;
 
@@ -461,7 +477,10 @@ class _ConverterScreenState extends State<ConverterScreen> {
       _notify('Could not create the PDF: $error', isError: true);
     } finally {
       if (mounted) {
-        setState(() => _busy = false);
+        setState(() {
+          _busy = false;
+          _progress = null;
+        });
       }
     }
   }

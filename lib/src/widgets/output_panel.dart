@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import '../core/pdf_builder.dart';
+import '../services/pdf_worker.dart';
 import '../services/save_location.dart';
 import '../services/settings_store.dart';
 
@@ -14,6 +15,7 @@ class OutputPanel extends StatelessWidget {
     required this.settings,
     required this.password,
     required this.busy,
+    required this.progress,
     required this.photoCount,
     required this.fileName,
     required this.location,
@@ -33,6 +35,10 @@ class OutputPanel extends StatelessWidget {
   final String? password;
 
   final bool busy;
+
+  /// How far the build has got, while one is running.
+  final PdfProgress? progress;
+
   final int photoCount;
   final String fileName;
   final SaveLocation location;
@@ -232,15 +238,20 @@ class OutputPanel extends StatelessWidget {
             ),
             const SizedBox(height: 12),
           ],
+          if (busy && progress != null) ...<Widget>[
+            LinearProgressIndicator(value: progress!.fraction),
+            const SizedBox(height: 6),
+            Text(
+              progress!.label,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
           FilledButton.icon(
             onPressed: photoCount == 0 || busy ? null : onCreate,
-            icon: busy
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.picture_as_pdf_outlined),
+            icon: const Icon(Icons.picture_as_pdf_outlined),
             label: Text(busy ? 'Creating PDF…' : 'Create PDF'),
           ),
           const SizedBox(height: 8),

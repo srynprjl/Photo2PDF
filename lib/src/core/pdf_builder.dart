@@ -121,8 +121,12 @@ const double _rasterDpi = 300;
 /// stored as pixels.
 Future<Uint8List> buildPdf(
   List<SelectedImage> images,
-  PdfOptions options,
-) async {
+  PdfOptions options, {
+
+  /// Called as each page is finished, with how many are done and how many
+  /// there are in total.
+  void Function(int done, int total)? onPage,
+}) async {
   if (images.isEmpty) {
     throw ArgumentError.value(images, 'images', 'cannot be empty');
   }
@@ -140,23 +144,17 @@ Future<Uint8List> buildPdf(
     );
   }
 
-  final List<Uint8List> prepared = <Uint8List>[
-    for (final SelectedImage image in images)
-      await _prepareBytes(image, options.compression),
-  ];
-
   for (int i = 0; i < images.length; i++) {
-    final Uint8List bytes = prepared[i];
+    // One photo at a time: squeezing them all first would sit on a silent pass
+    // over the whole set before the first page exists.
+    final Uint8List bytes = await _prepareBytes(images[i], options.compression);
     document.addPage(
       pw.Page(
         pageFormat: _pageFormatFor(images[i], options),
         margin: margin,
         build: (pw.Context context) => pw.Center(
           child: pw.Image(
-            pw.MemoryImage(
-              bytes,
-              dpi: isJpegBytes(bytes) ? null : _rasterDpi,
-            ),
+            pw.MemoryImage(bytes, dpi: isJpegBytes(bytes) ? null : _rasterDpi),
             fit: options.imageFit.fillsPage
                 ? pw.BoxFit.cover
                 : pw.BoxFit.contain,
@@ -164,6 +162,7 @@ Future<Uint8List> buildPdf(
         ),
       ),
     );
+    onPage?.call(i + 1, images.length);
   }
 
   return document.save();

@@ -37,6 +37,9 @@ vanishing.
 - EXIF orientation is applied, so phone photos are never sideways.
 - The output name is suggested from the photos and the time, and is made unique
   (`scan (2).pdf`) rather than overwriting.
+- The PDF is built on a background isolate, so the window keeps scrolling and
+  the buttons keep responding on a big set. While it works the panel shows a
+  bar and `Page 5 of 12`, then `Writing the file…` — not a frozen spinner.
 - The selection is kept on disk after every add, remove and reorder, so it
   survives a restart, a rotation and Android killing the app for memory. On the
   next launch a **Continue where you left off?** card offers it back, with the
@@ -92,7 +95,7 @@ Checks:
 
 ```bash
 flutter analyze                 # no issues
-flutter test                    # 66 tests
+flutter test                    # 75 tests
 ```
 
 ## Project layout
@@ -113,6 +116,11 @@ PLAN.md                              scope, milestones, known limitations
 ```
 
 ## How it works
+
+Building runs in an isolate of its own (`pdf_worker.dart`): the photos go across
+as bytes, each finished page is reported back as a count, and the finished file
+comes back as one buffer. The page callback fires from inside the builder, so
+the number on screen is the page that actually exists.
 
 Photos are decoded with the `image` package, EXIF-rotated, and laid out on an
 A4/Letter page (or a page cut to the photo's shape) with the `pdf` package's

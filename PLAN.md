@@ -21,6 +21,7 @@ with a Material 3 interface.
 | Password-protect the PDF | Watermarks, signatures |
 | Photos from the gallery (default), the file browser or the camera | Cloud drives, burst mode |
 | The selection survives restarts; last session offered back | Syncing across devices |
+| Building runs off the UI isolate, with per-page progress | Background saving of huge batches |
 | Adjustable white margin | Cloud upload / accounts |
 | Save the PDF to disk | Printing, in-app sharing |
 
@@ -106,6 +107,7 @@ lib/src/core/pdf_encryption.dart           RC4 128-bit password protection
 lib/src/models/selected_image.dart         photo model + size formatting
 lib/src/services/image_picker_service.dart file picking, validation, transcoding
 lib/src/services/draft_store.dart          the photo list on disk between runs
+lib/src/services/pdf_worker.dart           builds the PDF in a background isolate
 lib/src/services/pdf_saver.dart            platform-aware saving
 lib/src/services/pdf_page_renderer.dart    PDFium page rendering to JPEG
 lib/src/services/page_saver.dart           writes rendered pages
@@ -157,6 +159,9 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 - [x] The photo list on disk (one file per photo, named after its bytes, plus
       a manifest): saved after every add, remove, reorder and clear, and offered
       back with **Continue (N)** or **Start fresh** on the next launch.
+- [x] The build runs on its own isolate, one photo at a time, reporting each
+      finished page; the panel shows a bar and `Page 5 of 12` (then `Writing the
+      file…`) instead of a spinner.
 - [x] Camera preview with a shutter and a running count, so a stack of pages
       can be shot in one visit; Done and the system back button both keep the
       shots.
@@ -207,11 +212,11 @@ test/fixtures/                             jpg, png, webp, gif, bmp, tiff, heic
 | Check | Command | Status |
 | --- | --- | --- |
 | Static analysis | `flutter analyze` | clean |
-| Unit tests | `flutter test` | 66 passing |
+| Unit tests | `flutter test` | 75 passing |
 | Locked PDF | Emulator + `qpdf` | the password-protected PDF made earlier opens after `test1234` (`Wrong password` reasks after a bad one, `Cancel` keeps the previous document), converts to 2 JPEGs at 1700×2200 that match a `pdftoppm` render of the qpdf-decrypted copy, and an unencrypted PDF still opens with no prompt |
 | Desktop build | `flutter build linux --debug` | builds, app launches |
 | Android build | `flutter build apk --debug` | builds, installs on emulator |
-| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF`; the page field shows `Will save 2 of 4 pages.` for `2-3` and writes only those two JPEGs, and `9` is refused with `Only pages 1–4 exist in this PDF.`; on an A4 page with a 0 mm margin the same photo is placed 650×842 at -27 mm with Fill (covers the sheet) and 595×771 at +36 mm with Fit (bands top and bottom); Camera in Settings opens the in-app preview, two shutter taps give `camera_20261126_002656_1.jpg` and `_2.jpg` (720×1280) which make a 2-page A4 PDF at 109 ppi, and the system back button after one shot keeps it (list goes 2 → 3 photos); two camera shots land in `files/draft` as two hashed files plus `draft.json` in order, `am force-stop` then a relaunch shows `Continue where you left off? 2 photos · 93.2 KB` and Continue brings both back, rotating to landscape and back keeps the list, and Start fresh empties the folder (`total 0`) with no banner on the next cold start |
+| Emulator run | Pixel 6, API 35 | PNG + WebP + BMP + HEIC → 4-page A4 PDF; rotated JPEG shows upright; page size, orientation, compression, photo source and save folder survive a restart; PDF lands in `Downloads/Photo2PDF`; "Ask each time" opens the system save dialog; Add photos opens the system photo picker by default and the file browser when Files is chosen; a Small + password PDF pulled off the device opens with `qpdf --password` and refuses the wrong one; the 4-page PDF from earlier converts back to 4 JPEGs (2338×1653 at 200 DPI) in `Downloads/Photo2PDF`; the page field shows `Will save 2 of 4 pages.` for `2-3` and writes only those two JPEGs, and `9` is refused with `Only pages 1–4 exist in this PDF.`; on an A4 page with a 0 mm margin the same photo is placed 650×842 at -27 mm with Fill (covers the sheet) and 595×771 at +36 mm with Fit (bands top and bottom); Camera in Settings opens the in-app preview, two shutter taps give `camera_20261126_002656_1.jpg` and `_2.jpg` (720×1280) which make a 2-page A4 PDF at 109 ppi, and the system back button after one shot keeps it (list goes 2 → 3 photos); two camera shots land in `files/draft` as two hashed files plus `draft.json` in order, `am force-stop` then a relaunch shows `Continue where you left off? 2 photos · 93.2 KB` and Continue brings both back, rotating to landscape and back keeps the list, and Start fresh empties the folder (`total 0`) with no banner on the next cold start; 12 photos at Small build in about 4.3 s while screenshots taken 0.7 s apart show `Page 5 of 12` then `Page 8 of 12` with the bar filling (the UI paints during the build), and a page-count log runs 0/12 → 12/12 |
 
 Not yet exercised: a physical phone, the desktop folder picker and save dialog,
 desktop HEIC, and drag-to-reorder on a device.
